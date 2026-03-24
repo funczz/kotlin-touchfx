@@ -73,7 +73,8 @@ subprojects {
         "implementation"(fileTree(mapOf("dir" to "libs", "include" to listOf("*.jar"))))
 
         "testImplementation"("org.junit.jupiter:junit-jupiter:5.10.2")
-        "testImplementation"("org.junit.platform:junit-platform-launcher:1.9.3")    }
+        "testImplementation"("org.junit.platform:junit-platform-launcher:1.9.3")
+    }
 
     /**
      * task: JavaCompile
