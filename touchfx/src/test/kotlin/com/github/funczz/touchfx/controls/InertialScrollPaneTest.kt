@@ -146,4 +146,14 @@ class InertialScrollPaneTest {
 
         assertTrue(Math.abs(scrollBar!!.value - valueAfterRelease) > 0.0, "Inertia should change scroll value")
     }
+
+    /**
+     * デフォルトスタイルが正しく適用されていることを確認します。
+     */
+    @Test
+    fun testDefaultStyle(@Suppress("UNUSED_PARAMETER") robot: FxRobot) {
+        val scrollPane = inertialScrollPane.scrollPane
+        assertTrue(scrollPane.styleClass.contains("touch-fx"), "ScrollPane should have 'touch-fx' style class")
+        assertTrue(scrollPane.stylesheets.isNotEmpty(), "ScrollPane should have stylesheets applied")
+    }
 }

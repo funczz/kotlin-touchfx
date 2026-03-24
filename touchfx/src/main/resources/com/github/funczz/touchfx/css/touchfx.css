@@ -1,0 +1,39 @@
+/**
+ * TouchFX デフォルトスタイルシート
+ */
+
+.touch-fx {
+    -fx-background-color: transparent;
+}
+
+/* スクロールバーを細く、あるいは目立たないように調整 */
+.touch-fx .scroll-bar:vertical {
+    -fx-background-color: transparent;
+    -fx-pref-width: 6px;
+}
+
+.touch-fx .scroll-bar:vertical .thumb {
+    -fx-background-color: rgba(128, 128, 128, 0.4);
+    -fx-background-radius: 3px;
+}
+
+.touch-fx .scroll-bar:vertical .increment-button,
+.touch-fx .scroll-bar:vertical .decrement-button {
+    -fx-padding: 0;
+    -fx-background-color: transparent;
+}
+
+.touch-fx .scroll-bar:vertical .increment-arrow,
+.touch-fx .scroll-bar:vertical .decrement-arrow {
+    -fx-shape: "";
+    -fx-padding: 0;
+}
+
+/* リストセルの選択状態を少し強調 */
+.touch-fx .list-cell:filled:selected {
+    -fx-background-color: derive(-fx-selection-bar, 20%);
+}
+
+.touch-fx .list-cell:filled:hover {
+    -fx-background-color: derive(-fx-control-inner-background, -5%);
+}

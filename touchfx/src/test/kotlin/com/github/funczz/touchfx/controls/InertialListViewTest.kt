@@ -62,7 +62,7 @@ class InertialListViewTest {
                 false, false, false, false, true, false, false, false, false, false, null
             ))
 
-            // MouseDragged (20px 移動)
+            // MouseDragged
             javafx.event.Event.fireEvent(listView, MouseEvent(
                 MouseEvent.MOUSE_DRAGGED, 0.0, 180.0, 0.0, 180.0,
                 javafx.scene.input.MouseButton.PRIMARY, 1,
@@ -140,5 +140,15 @@ class InertialListViewTest {
         WaitForAsyncUtils.waitForFxEvents()
 
         assertTrue(Math.abs(scrollBar!!.value - valueAfterRelease) > 0.0, "Inertia should change scroll value")
+    }
+
+    /**
+     * デフォルトスタイルが正しく適用されていることを確認します。
+     */
+    @Test
+    fun testDefaultStyle(@Suppress("UNUSED_PARAMETER") robot: FxRobot) {
+        val listView = inertialListView.listView
+        assertTrue(listView.styleClass.contains("touch-fx"), "ListView should have 'touch-fx' style class")
+        assertTrue(listView.stylesheets.isNotEmpty(), "ListView should have stylesheets applied")
     }
 }

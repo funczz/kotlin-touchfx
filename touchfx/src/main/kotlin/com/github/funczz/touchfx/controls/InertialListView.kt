@@ -1,5 +1,6 @@
 package com.github.funczz.touchfx.controls
 
+import com.github.funczz.touchfx.TouchFX
 import com.github.funczz.touchfx.behavior.TouchBehavior
 import javafx.collections.ObservableList
 import javafx.scene.control.ListView
@@ -9,10 +10,23 @@ import javafx.scene.control.ListView
  *
  * @param T リストアイテムの型
  * @property listView ラップされた標準の [ListView]
+ * @param useDefaultStyle デフォルトのスタイルシートを適用するかどうか
  */
-class InertialListView<T>(val listView: ListView<T> = ListView()) {
+class InertialListView<T>(
+    val listView: ListView<T> = ListView(),
+    useDefaultStyle: Boolean = true
+) {
 
     private val behavior = TouchBehavior(listView)
+
+    init {
+        if (useDefaultStyle) {
+            TouchFX.defaultStyleSheet?.let {
+                listView.stylesheets.add(it)
+            }
+            listView.styleClass.add("touch-fx")
+        }
+    }
 
     /**
      * リストアイテムのリスト。

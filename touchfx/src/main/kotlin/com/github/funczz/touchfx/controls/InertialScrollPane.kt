@@ -1,5 +1,6 @@
 package com.github.funczz.touchfx.controls
 
+import com.github.funczz.touchfx.TouchFX
 import com.github.funczz.touchfx.behavior.TouchBehavior
 import javafx.scene.Node
 import javafx.scene.control.ScrollPane
@@ -8,10 +9,23 @@ import javafx.scene.control.ScrollPane
  * 慣性スクロール機能を持つ [ScrollPane] のラッパーコンポーネントです。
  *
  * @property scrollPane ラップされた標準の [ScrollPane]
+ * @param useDefaultStyle デフォルトのスタイルシートを適用するかどうか
  */
-class InertialScrollPane(val scrollPane: ScrollPane = ScrollPane()) {
+class InertialScrollPane(
+    val scrollPane: ScrollPane = ScrollPane(),
+    useDefaultStyle: Boolean = true
+) {
 
     private val behavior = TouchBehavior(scrollPane)
+
+    init {
+        if (useDefaultStyle) {
+            TouchFX.defaultStyleSheet?.let {
+                scrollPane.stylesheets.add(it)
+            }
+            scrollPane.styleClass.add("touch-fx")
+        }
+    }
 
     /**
      * スクロールペインの内容。
