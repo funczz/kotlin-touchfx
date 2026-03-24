@@ -1,0 +1,30 @@
+name: test
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - main
+      - feature/**
+      - feat/**
+      - fix/**
+      - refactor/**
+      - develop
+      - release
+
+jobs:
+  test:
+    name: Test on JDK
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+      - name: Set up JDK
+        uses: actions/setup-java@v5
+        with:
+          distribution: liberica
+          java-package: jdk+fx
+          java-version: 17
+          cache: gradle
+      - name: Test with Gradle
+        run: ./gradlew test
