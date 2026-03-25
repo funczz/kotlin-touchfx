@@ -37,3 +37,8 @@
 .touch-fx .list-cell:filled:hover {
     -fx-background-color: derive(-fx-control-inner-background, -5%);
 }
+
+/* スクロールバーを隠すためのスタイル */
+.hide-scroll-bar .scroll-bar {
+    -fx-opacity: 0;
+}

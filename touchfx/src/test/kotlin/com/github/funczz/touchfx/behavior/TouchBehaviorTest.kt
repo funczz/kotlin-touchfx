@@ -3,53 +3,51 @@ package com.github.funczz.touchfx.behavior
 import javafx.application.Platform
 import javafx.geometry.Orientation
 import javafx.scene.Scene
-import javafx.scene.control.ListView
 import javafx.scene.control.ScrollBar
-import javafx.scene.control.ScrollPane
-import javafx.scene.input.MouseEvent
-import javafx.scene.layout.Region
 import javafx.scene.layout.StackPane
 import javafx.stage.Stage
-import org.junit.jupiter.api.Assertions.assertNotEquals
-import org.junit.jupiter.api.Assertions.assertTrue
+import org.junit.jupiter.api.Assertions.*
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.extension.ExtendWith
 import org.testfx.api.FxRobot
 import org.testfx.framework.junit5.ApplicationExtension
 import org.testfx.framework.junit5.Start
 import org.testfx.util.WaitForAsyncUtils
+import javafx.scene.input.MouseEvent
 
 /**
  * [TouchBehavior] の基本動作を検証するテストクラス。
+ * スクロールバーを直接注入することで、標準コントロールの干渉を排除してロジックを検証します。
  */
 @ExtendWith(ApplicationExtension::class)
 class TouchBehaviorTest {
 
-    private lateinit var listView: ListView<String>
-    private lateinit var scrollPane: ScrollPane
-    private lateinit var behavior: TouchBehavior
+    private lateinit var root: StackPane
+    private lateinit var vScrollBar: ScrollBar
+    private lateinit var hScrollBar: ScrollBar
 
     /**
      * テスト用の UI をセットアップします。
      */
     @Start
     fun start(stage: Stage) {
-        listView = ListView<String>().apply {
-            items.addAll((1..100).map { "Item $it" })
+        vScrollBar = ScrollBar().apply {
+            orientation = Orientation.VERTICAL
+            min = 0.0
+            max = 1.0
+            value = 0.5
         }
-        scrollPane = ScrollPane().apply {
-            content = Region().apply {
-                minWidth = 1000.0
-                minHeight = 1000.0
-            }
+        hScrollBar = ScrollBar().apply {
+            orientation = Orientation.HORIZONTAL
+            min = 0.0
+            max = 1.0
+            value = 0.5
         }
-        val root = StackPane(listView, scrollPane)
-        listView.isVisible = false
-        scrollPane.isVisible = false
-        stage.scene = Scene(root, 300.0, 400.0)
+        root = StackPane().apply {
+            children.addAll(vScrollBar, hScrollBar)
+        }
+        stage.scene = Scene(root, 400.0, 400.0)
         stage.show()
-
-        behavior = TouchBehavior(listView)
     }
 
     /**
@@ -57,232 +55,299 @@ class TouchBehaviorTest {
      */
     @Test
     fun testDragScroll(@Suppress("UNUSED_PARAMETER") robot: FxRobot) {
+        var behavior: TouchBehavior? = null
         Platform.runLater {
-            listView.isVisible = true
-            scrollPane.isVisible = false
-            behavior.dispose()
-            behavior = TouchBehavior(listView)
+            vScrollBar.value = 0.5
+            behavior = TouchBehavior(root).apply {
+                isDirectionLockEnabled = false
+                verticalScrollBar = vScrollBar
+                sensitivity = 0.01
+            }
         }
         WaitForAsyncUtils.waitForFxEvents()
 
-        var scrollBar: ScrollBar? = null
-        WaitForAsyncUtils.waitFor(10, java.util.concurrent.TimeUnit.SECONDS) {
-            scrollBar = listView.lookupAll(".scroll-bar")
-                .filterIsInstance<ScrollBar>()
-                .find { it.orientation == Orientation.VERTICAL }
-            scrollBar != null && scrollBar!!.visibleAmount < scrollBar!!.max
-        }
-
-        assertTrue(scrollBar != null, "ScrollBar should be present")
-        val initialValue = scrollBar!!.value
-
         Platform.runLater {
-            javafx.event.Event.fireEvent(listView, MouseEvent(
+            javafx.event.Event.fireEvent(root, MouseEvent(
                 MouseEvent.MOUSE_PRESSED, 200.0, 200.0, 200.0, 200.0,
                 javafx.scene.input.MouseButton.PRIMARY, 1,
                 false, false, false, false, true, false, false, false, false, false, null
             ))
+        }
+        WaitForAsyncUtils.waitForFxEvents()
 
-            javafx.event.Event.fireEvent(listView, MouseEvent(
-                MouseEvent.MOUSE_DRAGGED, 200.0, 180.0, 200.0, 180.0,
-                javafx.scene.input.MouseButton.PRIMARY, 1,
-                false, false, false, false, true, false, false, false, false, false, null
-            ))
-
-            javafx.event.Event.fireEvent(listView, MouseEvent(
-                MouseEvent.MOUSE_RELEASED, 200.0, 180.0, 200.0, 180.0,
+        Platform.runLater {
+            javafx.event.Event.fireEvent(root, MouseEvent(
+                MouseEvent.MOUSE_DRAGGED, 200.0, 210.0, 200.0, 210.0,
                 javafx.scene.input.MouseButton.PRIMARY, 1,
                 false, false, false, false, true, false, false, false, false, false, null
             ))
         }
-
         WaitForAsyncUtils.waitForFxEvents()
-        assertNotEquals(initialValue, scrollBar!!.value, "ScrollBar value should change after manual drag events")
+
+        // 値が減少していることを確認 (0.5 -> 0.4付近)
+        assertTrue(vScrollBar.value < 0.5, "Value should decrease from 0.5. Current: ${vScrollBar.value}")
+        
+        Platform.runLater {
+            javafx.event.Event.fireEvent(root, MouseEvent(
+                MouseEvent.MOUSE_RELEASED, 200.0, 210.0, 200.0, 210.0,
+                javafx.scene.input.MouseButton.PRIMARY, 1,
+                false, false, false, false, true, false, false, false, false, false, null
+            ))
+        }
+        Platform.runLater { behavior?.dispose() }
+        WaitForAsyncUtils.waitForFxEvents()
     }
 
     /**
-     * 水平ドラッグ操作によってスクロールバーの値が変化することを確認します。
+     * 方向ロック機能を検証します。
      */
     @Test
-    fun testHorizontalDragScroll(@Suppress("UNUSED_PARAMETER") robot: FxRobot) {
+    fun testDirectionLock(@Suppress("UNUSED_PARAMETER") robot: FxRobot) {
+        var behavior: TouchBehavior? = null
         Platform.runLater {
-            listView.isVisible = false
-            scrollPane.isVisible = true
-            behavior.dispose()
-            behavior = TouchBehavior(scrollPane)
+            vScrollBar.value = 0.5
+            hScrollBar.value = 0.5
+            behavior = TouchBehavior(root).apply {
+                isDirectionLockEnabled = true
+                verticalScrollBar = vScrollBar
+                horizontalScrollBar = hScrollBar
+                sensitivity = 0.01
+            }
         }
         WaitForAsyncUtils.waitForFxEvents()
 
-        var scrollBar: ScrollBar? = null
-        WaitForAsyncUtils.waitFor(10, java.util.concurrent.TimeUnit.SECONDS) {
-            scrollBar = scrollPane.lookupAll(".scroll-bar")
-                .filterIsInstance<ScrollBar>()
-                .find { it.orientation == Orientation.HORIZONTAL }
-            scrollBar != null
-        }
-
-        assertTrue(scrollBar != null, "Horizontal ScrollBar should be present")
-        val initialValue = scrollBar!!.value
-
         Platform.runLater {
-            javafx.event.Event.fireEvent(scrollPane, MouseEvent(
+            javafx.event.Event.fireEvent(root, MouseEvent(
                 MouseEvent.MOUSE_PRESSED, 200.0, 200.0, 200.0, 200.0,
                 javafx.scene.input.MouseButton.PRIMARY, 1,
                 false, false, false, false, true, false, false, false, false, false, null
             ))
+        }
+        WaitForAsyncUtils.waitForFxEvents()
 
-            javafx.event.Event.fireEvent(scrollPane, MouseEvent(
-                MouseEvent.MOUSE_DRAGGED, 180.0, 200.0, 180.0, 200.0,
-                javafx.scene.input.MouseButton.PRIMARY, 1,
-                false, false, false, false, true, false, false, false, false, false, null
-            ))
-
-            javafx.event.Event.fireEvent(scrollPane, MouseEvent(
-                MouseEvent.MOUSE_RELEASED, 180.0, 200.0, 180.0, 200.0,
+        Platform.runLater {
+            // 垂直に大きく (20px), 水平にわずか (1px) -> 垂直ロック
+            javafx.event.Event.fireEvent(root, MouseEvent(
+                MouseEvent.MOUSE_DRAGGED, 199.0, 220.0, 199.0, 220.0,
                 javafx.scene.input.MouseButton.PRIMARY, 1,
                 false, false, false, false, true, false, false, false, false, false, null
             ))
         }
-
         WaitForAsyncUtils.waitForFxEvents()
-        assertNotEquals(initialValue, scrollBar!!.value, "Horizontal ScrollBar value should change after manual drag events")
+        
+        assertTrue(vScrollBar.value < 0.5, "Vertical should scroll")
+        assertEquals(0.5, hScrollBar.value, 0.001, "Horizontal should be locked at 0.5")
+
+        Platform.runLater {
+            javafx.event.Event.fireEvent(root, MouseEvent(
+                MouseEvent.MOUSE_RELEASED, 199.0, 220.0, 199.0, 220.0,
+                javafx.scene.input.MouseButton.PRIMARY, 1,
+                false, false, false, false, true, false, false, false, false, false, null
+            ))
+        }
+        Platform.runLater { behavior?.dispose() }
+        WaitForAsyncUtils.waitForFxEvents()
     }
 
     /**
-     * ドラッグ後の慣性によって垂直スクロールが続くことを確認します。
+     * スクロールバーの動的表示機能を検証します。
      */
     @Test
-    fun testVerticalInertiaScroll(@Suppress("UNUSED_PARAMETER") robot: FxRobot) {
+    fun testDynamicScrollBarVisibility(@Suppress("UNUSED_PARAMETER") robot: FxRobot) {
+        var behavior: TouchBehavior? = null
         Platform.runLater {
-            listView.isVisible = true
-            scrollPane.isVisible = false
-            behavior.dispose()
-            behavior = TouchBehavior(listView)
+            behavior = TouchBehavior(root).apply {
+                isDynamicScrollBarVisible = true
+            }
         }
         WaitForAsyncUtils.waitForFxEvents()
 
-        var scrollBar: ScrollBar? = null
-        WaitForAsyncUtils.waitFor(10, java.util.concurrent.TimeUnit.SECONDS) {
-            scrollBar = listView.lookupAll(".scroll-bar")
-                .filterIsInstance<ScrollBar>()
-                .find { it.orientation == Orientation.VERTICAL }
-            scrollBar != null && scrollBar!!.visibleAmount < scrollBar!!.max
-        }
-
-        assertTrue(scrollBar != null, "ScrollBar should be present")
-
-        Platform.runLater { scrollBar!!.value = 0.5 }
-        WaitForAsyncUtils.waitForFxEvents()
-
-        behavior.sensitivity = 0.005
-        behavior.inertia = 0.0005
+        assertTrue(root.styleClass.contains("hide-scroll-bar"))
 
         Platform.runLater {
-            javafx.event.Event.fireEvent(listView, MouseEvent(
+            javafx.event.Event.fireEvent(root, MouseEvent(
                 MouseEvent.MOUSE_PRESSED, 200.0, 200.0, 200.0, 200.0,
                 javafx.scene.input.MouseButton.PRIMARY, 1,
                 false, false, false, false, true, false, false, false, false, false, null
             ))
         }
         WaitForAsyncUtils.waitForFxEvents()
-        Thread.sleep(20)
+        assertFalse(root.styleClass.contains("hide-scroll-bar"))
 
         Platform.runLater {
-            javafx.event.Event.fireEvent(listView, MouseEvent(
-                MouseEvent.MOUSE_DRAGGED, 200.0, 190.0, 200.0, 190.0,
+            javafx.event.Event.fireEvent(root, MouseEvent(
+                MouseEvent.MOUSE_RELEASED, 200.0, 200.0, 200.0, 200.0,
                 javafx.scene.input.MouseButton.PRIMARY, 1,
                 false, false, false, false, true, false, false, false, false, false, null
             ))
         }
         WaitForAsyncUtils.waitForFxEvents()
-        Thread.sleep(20)
-
-        Platform.runLater {
-            javafx.event.Event.fireEvent(listView, MouseEvent(
-                MouseEvent.MOUSE_RELEASED, 200.0, 190.0, 200.0, 190.0,
-                javafx.scene.input.MouseButton.PRIMARY, 1,
-                false, false, false, false, true, false, false, false, false, false, null
-            ))
-        }
-
+        
+        Thread.sleep(2000)
         WaitForAsyncUtils.waitForFxEvents()
-        val valueAfterRelease = scrollBar!!.value
-
-        Thread.sleep(500)
+        assertTrue(root.styleClass.contains("hide-scroll-bar"))
+        Platform.runLater { behavior?.dispose() }
         WaitForAsyncUtils.waitForFxEvents()
-
-        assertTrue(
-            Math.abs(scrollBar!!.value - valueAfterRelease) > 0.0,
-            "Vertical Inertia should change scroll value (after release: $valueAfterRelease, current: ${scrollBar!!.value})"
-        )
     }
 
     /**
-     * ドラッグ後の慣性によって水平スクロールが続くことを確認します。
+     * 境界での跳ね返り (Bounce) 機能を検証します。
      */
     @Test
-    fun testHorizontalInertiaScroll(@Suppress("UNUSED_PARAMETER") robot: FxRobot) {
+    fun testBounceEffect(@Suppress("UNUSED_PARAMETER") robot: FxRobot) {
+        var behavior: TouchBehavior? = null
         Platform.runLater {
-            listView.isVisible = false
-            scrollPane.isVisible = true
-            behavior.dispose()
-            behavior = TouchBehavior(scrollPane)
+            vScrollBar.value = 0.0
+            behavior = TouchBehavior(root).apply {
+                isDirectionLockEnabled = false
+                isBounceEnabled = true
+                verticalScrollBar = vScrollBar
+            }
         }
         WaitForAsyncUtils.waitForFxEvents()
 
-        var scrollBar: ScrollBar? = null
-        WaitForAsyncUtils.waitFor(10, java.util.concurrent.TimeUnit.SECONDS) {
-            scrollBar = scrollPane.lookupAll(".scroll-bar")
-                .filterIsInstance<ScrollBar>()
-                .find { it.orientation == Orientation.HORIZONTAL }
-            scrollBar != null
-        }
-
-        assertTrue(scrollBar != null, "Horizontal ScrollBar should be present")
-
-        Platform.runLater { scrollBar!!.value = 0.5 }
-        WaitForAsyncUtils.waitForFxEvents()
-
-        behavior.sensitivity = 0.005
-        behavior.inertia = 0.0005
-
         Platform.runLater {
-            javafx.event.Event.fireEvent(scrollPane, MouseEvent(
+            javafx.event.Event.fireEvent(root, MouseEvent(
                 MouseEvent.MOUSE_PRESSED, 200.0, 200.0, 200.0, 200.0,
                 javafx.scene.input.MouseButton.PRIMARY, 1,
                 false, false, false, false, true, false, false, false, false, false, null
             ))
         }
         WaitForAsyncUtils.waitForFxEvents()
-        Thread.sleep(20)
 
         Platform.runLater {
-            javafx.event.Event.fireEvent(scrollPane, MouseEvent(
-                MouseEvent.MOUSE_DRAGGED, 190.0, 200.0, 190.0, 200.0,
+            // 100px 下へドラッグ (境界外)
+            javafx.event.Event.fireEvent(root, MouseEvent(
+                MouseEvent.MOUSE_DRAGGED, 200.0, 300.0, 200.0, 300.0,
                 javafx.scene.input.MouseButton.PRIMARY, 1,
                 false, false, false, false, true, false, false, false, false, false, null
             ))
         }
         WaitForAsyncUtils.waitForFxEvents()
-        Thread.sleep(20)
+        
+        assertTrue(root.translateY > 0.0)
 
         Platform.runLater {
-            javafx.event.Event.fireEvent(scrollPane, MouseEvent(
-                MouseEvent.MOUSE_RELEASED, 190.0, 200.0, 190.0, 200.0,
+            javafx.event.Event.fireEvent(root, MouseEvent(
+                MouseEvent.MOUSE_RELEASED, 200.0, 300.0, 200.0, 300.0,
                 javafx.scene.input.MouseButton.PRIMARY, 1,
                 false, false, false, false, true, false, false, false, false, false, null
             ))
         }
-
-        WaitForAsyncUtils.waitForFxEvents()
-        val valueAfterRelease = scrollBar!!.value
-
-        Thread.sleep(500)
         WaitForAsyncUtils.waitForFxEvents()
 
-        assertTrue(
-            Math.abs(scrollBar!!.value - valueAfterRelease) > 0.0,
-            "Horizontal Inertia should change scroll value (after release: $valueAfterRelease, current: ${scrollBar!!.value})"
-        )
+        Thread.sleep(2500)
+        WaitForAsyncUtils.waitForFxEvents()
+        
+        assertEquals(0.0, root.translateY, 0.5)
+        Platform.runLater { behavior?.dispose() }
+        WaitForAsyncUtils.waitForFxEvents()
+    }
+
+    /**
+     * 方向別の感度設定を検証します。
+     */
+    @Test
+    fun testDirectionalSensitivity(@Suppress("UNUSED_PARAMETER") robot: FxRobot) {
+        var behavior: TouchBehavior? = null
+        Platform.runLater {
+            vScrollBar.value = 0.5
+            hScrollBar.value = 0.5
+            behavior = TouchBehavior(root).apply {
+                isDirectionLockEnabled = false
+                verticalScrollBar = vScrollBar
+                horizontalScrollBar = hScrollBar
+                sensitivityX = 0.01
+                sensitivityY = 0.001
+            }
+        }
+        WaitForAsyncUtils.waitForFxEvents()
+
+        Platform.runLater {
+            javafx.event.Event.fireEvent(root, MouseEvent(
+                MouseEvent.MOUSE_PRESSED, 200.0, 200.0, 200.0, 200.0,
+                javafx.scene.input.MouseButton.PRIMARY, 1,
+                false, false, false, false, true, false, false, false, false, false, null
+            ))
+        }
+        WaitForAsyncUtils.waitForFxEvents()
+
+        Platform.runLater {
+            javafx.event.Event.fireEvent(root, MouseEvent(
+                MouseEvent.MOUSE_DRAGGED, 190.0, 190.0, 190.0, 190.0,
+                javafx.scene.input.MouseButton.PRIMARY, 1,
+                false, false, false, false, true, false, false, false, false, false, null
+            ))
+        }
+        WaitForAsyncUtils.waitForFxEvents()
+
+        val deltaH = Math.abs(hScrollBar.value - 0.5)
+        val deltaV = Math.abs(vScrollBar.value - 0.5)
+        
+        assertTrue(deltaH > deltaV, "Horizontal scroll ($deltaH) should be larger than vertical ($deltaV)")
+
+        Platform.runLater {
+            javafx.event.Event.fireEvent(root, MouseEvent(
+                MouseEvent.MOUSE_RELEASED, 190.0, 190.0, 190.0, 190.0,
+                javafx.scene.input.MouseButton.PRIMARY, 1,
+                false, false, false, false, true, false, false, false, false, false, null
+            ))
+        }
+        Platform.runLater { behavior?.dispose() }
+        WaitForAsyncUtils.waitForFxEvents()
+    }
+
+    /**
+     * ドラッグ後の慣性によってスクロールが続くことを確認します。
+     */
+    @Test
+    fun testInertiaScroll(@Suppress("UNUSED_PARAMETER") robot: FxRobot) {
+        var behavior: TouchBehavior? = null
+        Platform.runLater {
+            vScrollBar.value = 0.5
+            behavior = TouchBehavior(root).apply {
+                isDirectionLockEnabled = false
+                verticalScrollBar = vScrollBar
+                sensitivity = 0.01
+                inertia = 0.01
+            }
+        }
+        WaitForAsyncUtils.waitForFxEvents()
+
+        Platform.runLater {
+            javafx.event.Event.fireEvent(root, MouseEvent(
+                MouseEvent.MOUSE_PRESSED, 200.0, 200.0, 200.0, 200.0,
+                javafx.scene.input.MouseButton.PRIMARY, 1,
+                false, false, false, false, true, false, false, false, false, false, null
+            ))
+        }
+        WaitForAsyncUtils.waitForFxEvents()
+
+        Platform.runLater {
+            javafx.event.Event.fireEvent(root, MouseEvent(
+                MouseEvent.MOUSE_DRAGGED, 200.0, 210.0, 200.0, 210.0,
+                javafx.scene.input.MouseButton.PRIMARY, 1,
+                false, false, false, false, true, false, false, false, false, false, null
+            ))
+        }
+        WaitForAsyncUtils.waitForFxEvents()
+
+        val valueAtRelease = vScrollBar.value
+
+        Platform.runLater {
+            javafx.event.Event.fireEvent(root, MouseEvent(
+                MouseEvent.MOUSE_RELEASED, 200.0, 210.0, 200.0, 210.0,
+                javafx.scene.input.MouseButton.PRIMARY, 1,
+                false, false, false, false, true, false, false, false, false, false, null
+            ))
+        }
+        WaitForAsyncUtils.waitForFxEvents()
+
+        Thread.sleep(1000)
+        WaitForAsyncUtils.waitForFxEvents()
+
+        assertTrue(vScrollBar.value < valueAtRelease, "Inertia should continue scrolling. Released at: $valueAtRelease, Final: ${vScrollBar.value}")
+        Platform.runLater { behavior?.dispose() }
+        WaitForAsyncUtils.waitForFxEvents()
     }
 }

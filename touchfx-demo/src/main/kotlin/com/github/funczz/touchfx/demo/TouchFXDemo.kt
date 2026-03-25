@@ -34,19 +34,24 @@ class TouchFXDemo : Application() {
 
         val root = BorderPane(tabPane)
         primaryStage.title = "TouchFX Demo"
-        primaryStage.scene = Scene(root, 600.0, 500.0)
+        primaryStage.scene = Scene(root, 800.0, 600.0) // 幅を少し広げる
         primaryStage.show()
     }
 
     private fun createListViewDemo(): Node {
         val inertialListView = InertialListView<String>().apply {
-            items.addAll((1..200).map { "List Item #$it" })
+            items.addAll((1..500).map { "List Item #$it" })
         }
 
         val controlPanel = createControlPanel(
-            onSensitivityChange = { inertialListView.sensitivity = it },
-            onInertiaChange = { inertialListView.inertia = it },
-            onFrictionChange = { inertialListView.friction = it }
+            onSensitivityXChange = { inertialListView.sensitivityX = it },
+            onSensitivityYChange = { inertialListView.sensitivityY = it },
+            onInertiaXChange = { inertialListView.inertiaX = it },
+            onInertiaYChange = { inertialListView.inertiaY = it },
+            onFrictionChange = { inertialListView.friction = it },
+            onDirectionLockChange = { inertialListView.isDirectionLockEnabled = it },
+            onDynamicVisibilityChange = { inertialListView.isDynamicScrollBarVisible = it },
+            onBounceChange = { inertialListView.isBounceEnabled = it }
         )
 
         return BorderPane().apply {
@@ -58,10 +63,10 @@ class TouchFXDemo : Application() {
     private fun createScrollPaneDemo(): Node {
         val content = VBox(10.0).apply {
             padding = Insets(20.0)
-            children.addAll((1..50).map {
+            children.addAll((1..100).map {
                 Label("ScrollPane Content Label #$it").apply {
                     style = "-fx-font-size: 18px; -fx-border-color: lightgray; -fx-padding: 10;"
-                    minWidth = 800.0 // 水平スクロールを発生させるために幅を広げる
+                    minWidth = 1000.0
                 }
             })
         }
@@ -71,9 +76,14 @@ class TouchFXDemo : Application() {
         }
 
         val controlPanel = createControlPanel(
-            onSensitivityChange = { inertialScrollPane.sensitivity = it },
-            onInertiaChange = { inertialScrollPane.inertia = it },
-            onFrictionChange = { inertialScrollPane.friction = it }
+            onSensitivityXChange = { inertialScrollPane.sensitivityX = it },
+            onSensitivityYChange = { inertialScrollPane.sensitivityY = it },
+            onInertiaXChange = { inertialScrollPane.inertiaX = it },
+            onInertiaYChange = { inertialScrollPane.inertiaY = it },
+            onFrictionChange = { inertialScrollPane.friction = it },
+            onDirectionLockChange = { inertialScrollPane.isDirectionLockEnabled = it },
+            onDynamicVisibilityChange = { inertialScrollPane.isDynamicScrollBarVisible = it },
+            onBounceChange = { inertialScrollPane.isBounceEnabled = it }
         )
 
         return BorderPane().apply {
@@ -83,28 +93,65 @@ class TouchFXDemo : Application() {
     }
 
     private fun createControlPanel(
-        onSensitivityChange: (Double) -> Unit,
-        onInertiaChange: (Double) -> Unit,
-        onFrictionChange: (Double) -> Unit
+        onSensitivityXChange: (Double) -> Unit,
+        onSensitivityYChange: (Double) -> Unit,
+        onInertiaXChange: (Double) -> Unit,
+        onInertiaYChange: (Double) -> Unit,
+        onFrictionChange: (Double) -> Unit,
+        onDirectionLockChange: (Boolean) -> Unit,
+        onDynamicVisibilityChange: (Boolean) -> Unit,
+        onBounceChange: (Boolean) -> Unit
     ): Node {
         val panel = VBox(10.0).apply {
             padding = Insets(15.0)
             style = "-fx-background-color: #f4f4f4; -fx-border-color: lightgray; -fx-border-width: 0 0 0 1;"
-            prefWidth = 200.0
+            prefWidth = 250.0
+        }
+
+        val scrollWrapper = ScrollPane(panel).apply {
+            hbarPolicy = ScrollPane.ScrollBarPolicy.NEVER
+            vbarPolicy = ScrollPane.ScrollBarPolicy.AS_NEEDED
+            isFitToWidth = true
         }
 
         panel.children.addAll(
-            Label("Settings").apply { style = "-fx-font-weight: bold;" },
+            Label("Settings").apply { style = "-fx-font-weight: bold; -fx-font-size: 14px;" },
             Separator(),
-            Label("Sensitivity"),
-            createSlider(0.0001, 0.05, 0.005, onSensitivityChange),
-            Label("Inertia"),
-            createSlider(0.0001, 0.01, 0.0005, onInertiaChange),
+            
+            Label("Features").apply { style = "-fx-font-weight: bold;" },
+            CheckBox("Direction Lock").apply {
+                isSelected = true
+                selectedProperty().addListener { _, _, newValue -> onDirectionLockChange(newValue) }
+            },
+            CheckBox("Dynamic ScrollBar").apply {
+                isSelected = false
+                selectedProperty().addListener { _, _, newValue -> onDynamicVisibilityChange(newValue) }
+            },
+            CheckBox("Bounce Effect").apply {
+                isSelected = false
+                selectedProperty().addListener { _, _, newValue -> onBounceChange(newValue) }
+            },
+            
+            Separator(),
+            Label("Parameters").apply { style = "-fx-font-weight: bold;" },
+            
+            Label("Sensitivity X"),
+            createSlider(0.0001, 0.05, 0.005, onSensitivityXChange),
+            
+            Label("Sensitivity Y"),
+            createSlider(0.0001, 0.05, 0.005, onSensitivityYChange),
+            
+            Label("Inertia X"),
+            createSlider(0.0001, 0.01, 0.0005, onInertiaXChange),
+            
+            Label("Inertia Y"),
+            createSlider(0.0001, 0.01, 0.0005, onInertiaYChange),
+            
             Label("Friction"),
             createSlider(0.5, 0.99, 0.92, onFrictionChange)
         )
 
-        return panel
+        return scrollWrapper
     }
 
     private fun createSlider(min: Double, max: Double, initial: Double, onChange: (Double) -> Unit): Slider {

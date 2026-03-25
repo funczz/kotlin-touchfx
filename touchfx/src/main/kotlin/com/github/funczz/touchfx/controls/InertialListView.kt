@@ -47,6 +47,24 @@ class InertialListView<T>(
         }
 
     /**
+     * 水平方向のスクロール感度。
+     */
+    var sensitivityX: Double
+        get() = behavior.sensitivityX
+        set(value) {
+            behavior.sensitivityX = value
+        }
+
+    /**
+     * 垂直方向のスクロール感度。
+     */
+    var sensitivityY: Double
+        get() = behavior.sensitivityY
+        set(value) {
+            behavior.sensitivityY = value
+        }
+
+    /**
      * 慣性の強さ。
      */
     var inertia: Double
@@ -56,12 +74,57 @@ class InertialListView<T>(
         }
 
     /**
+     * 水平方向の慣性の強さ。
+     */
+    var inertiaX: Double
+        get() = behavior.inertiaX
+        set(value) {
+            behavior.inertiaX = value
+        }
+
+    /**
+     * 垂直方向の慣性の強さ。
+     */
+    var inertiaY: Double
+        get() = behavior.inertiaY
+        set(value) {
+            behavior.inertiaY = value
+        }
+
+    /**
      * 摩擦係数。
      */
     var friction: Double
         get() = behavior.friction
         set(value) {
             behavior.friction = value
+        }
+
+    /**
+     * スクロール方向のロックを有効にするかどうか。
+     */
+    var isDirectionLockEnabled: Boolean
+        get() = behavior.isDirectionLockEnabled
+        set(value) {
+            behavior.isDirectionLockEnabled = value
+        }
+
+    /**
+     * スクロールバーを動的に表示するかどうか。
+     */
+    var isDynamicScrollBarVisible: Boolean
+        get() = behavior.isDynamicScrollBarVisible
+        set(value) {
+            behavior.isDynamicScrollBarVisible = value
+        }
+
+    /**
+     * 境界での跳ね返り (Bounce) を有効にするかどうか。
+     */
+    var isBounceEnabled: Boolean
+        get() = behavior.isBounceEnabled
+        set(value) {
+            behavior.isBounceEnabled = value
         }
 
     /**
