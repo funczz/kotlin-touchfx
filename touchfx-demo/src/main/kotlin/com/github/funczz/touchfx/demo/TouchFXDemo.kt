@@ -61,7 +61,7 @@ class TouchFXDemo : Application() {
             children.addAll((1..50).map {
                 Label("ScrollPane Content Label #$it").apply {
                     style = "-fx-font-size: 18px; -fx-border-color: lightgray; -fx-padding: 10;"
-                    maxWidth = Double.MAX_VALUE
+                    minWidth = 800.0 // 水平スクロールを発生させるために幅を広げる
                 }
             })
         }

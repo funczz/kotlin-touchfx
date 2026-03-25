@@ -87,6 +87,51 @@ class InertialScrollPaneTest {
     }
 
     /**
+     * 水平ドラッグ操作によって内部の ScrollPane がスクロールすることを確認します。
+     */
+    @Test
+    fun testHorizontalDragScroll(@Suppress("UNUSED_PARAMETER") robot: FxRobot) {
+        WaitForAsyncUtils.waitForFxEvents()
+        val scrollPane = inertialScrollPane.scrollPane
+        var scrollBar: ScrollBar? = null
+        WaitForAsyncUtils.waitFor(10, java.util.concurrent.TimeUnit.SECONDS) {
+            scrollBar = scrollPane.lookupAll(".scroll-bar")
+                .filterIsInstance<ScrollBar>()
+                .find { it.orientation == javafx.geometry.Orientation.HORIZONTAL }
+            scrollBar != null
+        }
+
+        assertTrue(scrollBar != null, "Horizontal ScrollBar should be present")
+        val initialValue = scrollBar!!.value
+
+        Platform.runLater {
+            // MousePressed
+            javafx.event.Event.fireEvent(scrollPane, MouseEvent(
+                MouseEvent.MOUSE_PRESSED, 200.0, 200.0, 200.0, 200.0,
+                javafx.scene.input.MouseButton.PRIMARY, 1,
+                false, false, false, false, true, false, false, false, false, false, null
+            ))
+
+            // MouseDragged
+            javafx.event.Event.fireEvent(scrollPane, MouseEvent(
+                MouseEvent.MOUSE_DRAGGED, 180.0, 200.0, 180.0, 200.0,
+                javafx.scene.input.MouseButton.PRIMARY, 1,
+                false, false, false, false, true, false, false, false, false, false, null
+            ))
+
+            // MouseReleased
+            javafx.event.Event.fireEvent(scrollPane, MouseEvent(
+                MouseEvent.MOUSE_RELEASED, 180.0, 200.0, 180.0, 200.0,
+                javafx.scene.input.MouseButton.PRIMARY, 1,
+                false, false, false, false, true, false, false, false, false, false, null
+            ))
+        }
+
+        WaitForAsyncUtils.waitForFxEvents()
+        assertNotEquals(initialValue, scrollBar!!.value, "Horizontal ScrollBar value should change after manual drag events")
+    }
+
+    /**
      * 慣性によってスクロールが続くことを確認します。
      */
     @Test
