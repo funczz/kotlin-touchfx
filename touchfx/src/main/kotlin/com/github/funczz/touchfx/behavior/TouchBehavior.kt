@@ -7,6 +7,7 @@ import javafx.scene.Node
 import javafx.scene.control.ScrollBar
 import javafx.scene.input.MouseEvent
 import kotlin.math.abs
+import kotlin.math.round
 
 /**
  * ノードに対してタッチ/ドラッグによる慣性スクロールの振る舞いを提供します。
@@ -85,6 +86,32 @@ class TouchBehavior(private val node: Node) {
      * 境界での跳ね返り (Bounce) を有効にするかどうか。
      */
     var isBounceEnabled: Boolean = false
+        set(value) {
+            field = value
+            if (!value) {
+                resetBounce()
+            }
+        }
+
+    /**
+     * スナップ（吸着）機能を有効にするかどうか。
+     */
+    var isSnapEnabled: Boolean = false
+
+    /**
+     * 水平方向のスナップ単位（ピクセル）。
+     */
+    var snapUnitX: Double = 0.0
+
+    /**
+     * 垂直方向のスナップ単位（ピクセル）。
+     */
+    var snapUnitY: Double = 0.0
+
+    /**
+     * スナップ位置への復元速度。
+     */
+    var snapRestoration: Double = 0.1
 
     /**
      * 手動で設定された垂直スクロールバー。
@@ -118,8 +145,15 @@ class TouchBehavior(private val node: Node) {
             val isRestoringY = isBounceEnabled && abs(bounceY) > 0.1
             val isMovingX = abs(velocityX) > 0.1
             val isMovingY = abs(velocityY) > 0.1
+            
+            // スナップ位置への補正が必要かどうかの判定
+            val snapTargetX = if (isSnapEnabled && snapUnitX > 0.0 && !isMovingX) calculateSnapTarget(Orientation.HORIZONTAL) else null
+            val snapTargetY = if (isSnapEnabled && snapUnitY > 0.0 && !isMovingY) calculateSnapTarget(Orientation.VERTICAL) else null
+            
+            val isSnappingX = snapTargetX != null && abs(findHorizontalScrollBarInternal()?.value ?: 0.0 - snapTargetX) > 0.0001
+            val isSnappingY = snapTargetY != null && abs(findVerticalScrollBarInternal()?.value ?: 0.0 - snapTargetY) > 0.0001
 
-            if (!isMovingX && !isMovingY && !isRestoringX && !isRestoringY) {
+            if (!isMovingX && !isMovingY && !isRestoringX && !isRestoringY && !isSnappingX && !isSnappingY) {
                 if (isDynamicScrollBarVisible) {
                     hideScrollBars()
                 }
@@ -130,11 +164,14 @@ class TouchBehavior(private val node: Node) {
             // 垂直スクロールの更新
             if (lockOrientation == null || lockOrientation == Orientation.VERTICAL) {
                 findVerticalScrollBarInternal()?.let { scrollBar ->
-                    val scrollDelta = velocityY * inertiaY
-                    scrollBar.value = (scrollBar.value - scrollDelta).coerceIn(scrollBar.min, scrollBar.max)
-                    
-                    if (isBounceEnabled && (scrollBar.value <= scrollBar.min || scrollBar.value >= scrollBar.max)) {
-                        bounceY += (velocityY * inertiaY * 100.0)
+                    if (isMovingY) {
+                        val scrollDelta = velocityY * inertiaY
+                        scrollBar.value = (scrollBar.value - scrollDelta).coerceIn(scrollBar.min, scrollBar.max)
+                        if (isBounceEnabled && (scrollBar.value <= scrollBar.min || scrollBar.value >= scrollBar.max)) {
+                            bounceY += (velocityY * inertiaY * 100.0)
+                        }
+                    } else if (snapTargetY != null) {
+                        scrollBar.value += (snapTargetY - scrollBar.value) * snapRestoration
                     }
                 }
             }
@@ -142,11 +179,14 @@ class TouchBehavior(private val node: Node) {
             // 水平スクロールの更新
             if (lockOrientation == null || lockOrientation == Orientation.HORIZONTAL) {
                 findHorizontalScrollBarInternal()?.let { scrollBar ->
-                    val scrollDelta = velocityX * inertiaX
-                    scrollBar.value = (scrollBar.value - scrollDelta).coerceIn(scrollBar.min, scrollBar.max)
-
-                    if (isBounceEnabled && (scrollBar.value <= scrollBar.min || scrollBar.value >= scrollBar.max)) {
-                        bounceX += (velocityX * inertiaX * 100.0)
+                    if (isMovingX) {
+                        val scrollDelta = velocityX * inertiaX
+                        scrollBar.value = (scrollBar.value - scrollDelta).coerceIn(scrollBar.min, scrollBar.max)
+                        if (isBounceEnabled && (scrollBar.value <= scrollBar.min || scrollBar.value >= scrollBar.max)) {
+                            bounceX += (velocityX * inertiaX * 100.0)
+                        }
+                    } else if (snapTargetX != null) {
+                        scrollBar.value += (snapTargetX - scrollBar.value) * snapRestoration
                     }
                 }
             }
@@ -293,5 +333,25 @@ class TouchBehavior(private val node: Node) {
         bounceX = 0.0
         bounceY = 0.0
         applyBounceTranslation()
+    }
+
+    private fun calculateSnapTarget(orientation: Orientation): Double? {
+        val scrollBar = if (orientation == Orientation.VERTICAL) findVerticalScrollBarInternal() else findHorizontalScrollBarInternal()
+        val snapUnit = if (orientation == Orientation.VERTICAL) snapUnitY else snapUnitX
+        if (scrollBar == null || snapUnit <= 0.0) return null
+
+        val range = scrollBar.max - scrollBar.min
+        if (range <= 0.0) return null
+
+        // 簡易的なピクセル換算: sensitivity を利用して value 単位のスナップ幅を求める
+        // 本来は viewport と content のサイズ比から求めるべきだが、
+        // sensitivity が正しく設定されている前提であれば以下で近似できる
+        val sensitivity = if (orientation == Orientation.VERTICAL) sensitivityY else sensitivityX
+        val snapValueUnit = snapUnit * sensitivity
+        
+        val currentValue = scrollBar.value
+        val snappedValue = round(currentValue / snapValueUnit) * snapValueUnit
+        
+        return snappedValue.coerceIn(scrollBar.min, scrollBar.max)
     }
 }

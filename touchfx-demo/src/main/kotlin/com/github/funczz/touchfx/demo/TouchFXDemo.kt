@@ -34,13 +34,16 @@ class TouchFXDemo : Application() {
 
         val root = BorderPane(tabPane)
         primaryStage.title = "TouchFX Demo"
-        primaryStage.scene = Scene(root, 800.0, 600.0) // 幅を少し広げる
+        primaryStage.scene = Scene(root, 800.0, 600.0)
         primaryStage.show()
     }
 
     private fun createListViewDemo(): Node {
         val inertialListView = InertialListView<String>().apply {
             items.addAll((1..500).map { "List Item #$it" })
+            isBounceEnabled = true // デフォルトで有効
+            isSnapEnabled = true
+            snapUnitY = 24.0
         }
 
         val controlPanel = createControlPanel(
@@ -51,7 +54,14 @@ class TouchFXDemo : Application() {
             onFrictionChange = { inertialListView.friction = it },
             onDirectionLockChange = { inertialListView.isDirectionLockEnabled = it },
             onDynamicVisibilityChange = { inertialListView.isDynamicScrollBarVisible = it },
-            onBounceChange = { inertialListView.isBounceEnabled = it }
+            initialBounceEnabled = inertialListView.isBounceEnabled,
+            onBounceChange = { inertialListView.isBounceEnabled = it },
+            initialSnapEnabled = inertialListView.isSnapEnabled,
+            onSnapEnabledChange = { inertialListView.isSnapEnabled = it },
+            initialSnapUnitX = inertialListView.snapUnitX,
+            onSnapUnitXChange = { inertialListView.snapUnitX = it },
+            initialSnapUnitY = inertialListView.snapUnitY,
+            onSnapUnitYChange = { inertialListView.snapUnitY = it }
         )
 
         return BorderPane().apply {
@@ -73,6 +83,7 @@ class TouchFXDemo : Application() {
 
         val inertialScrollPane = InertialScrollPane().apply {
             this.content = content
+            isBounceEnabled = true // デフォルトで有効
         }
 
         val controlPanel = createControlPanel(
@@ -83,7 +94,14 @@ class TouchFXDemo : Application() {
             onFrictionChange = { inertialScrollPane.friction = it },
             onDirectionLockChange = { inertialScrollPane.isDirectionLockEnabled = it },
             onDynamicVisibilityChange = { inertialScrollPane.isDynamicScrollBarVisible = it },
-            onBounceChange = { inertialScrollPane.isBounceEnabled = it }
+            initialBounceEnabled = inertialScrollPane.isBounceEnabled,
+            onBounceChange = { inertialScrollPane.isBounceEnabled = it },
+            initialSnapEnabled = inertialScrollPane.isSnapEnabled,
+            onSnapEnabledChange = { inertialScrollPane.isSnapEnabled = it },
+            initialSnapUnitX = inertialScrollPane.snapUnitX,
+            onSnapUnitXChange = { inertialScrollPane.snapUnitX = it },
+            initialSnapUnitY = inertialScrollPane.snapUnitY,
+            onSnapUnitYChange = { inertialScrollPane.snapUnitY = it }
         )
 
         return BorderPane().apply {
@@ -100,7 +118,14 @@ class TouchFXDemo : Application() {
         onFrictionChange: (Double) -> Unit,
         onDirectionLockChange: (Boolean) -> Unit,
         onDynamicVisibilityChange: (Boolean) -> Unit,
-        onBounceChange: (Boolean) -> Unit
+        initialBounceEnabled: Boolean,
+        onBounceChange: (Boolean) -> Unit,
+        initialSnapEnabled: Boolean,
+        onSnapEnabledChange: (Boolean) -> Unit,
+        initialSnapUnitX: Double,
+        onSnapUnitXChange: (Double) -> Unit,
+        initialSnapUnitY: Double,
+        onSnapUnitYChange: (Double) -> Unit
     ): Node {
         val panel = VBox(10.0).apply {
             padding = Insets(15.0)
@@ -128,8 +153,12 @@ class TouchFXDemo : Application() {
                 selectedProperty().addListener { _, _, newValue -> onDynamicVisibilityChange(newValue) }
             },
             CheckBox("Bounce Effect").apply {
-                isSelected = false
+                isSelected = initialBounceEnabled
                 selectedProperty().addListener { _, _, newValue -> onBounceChange(newValue) }
+            },
+            CheckBox("Snapping").apply {
+                isSelected = initialSnapEnabled
+                selectedProperty().addListener { _, _, newValue -> onSnapEnabledChange(newValue) }
             },
             
             Separator(),
@@ -148,7 +177,13 @@ class TouchFXDemo : Application() {
             createSlider(0.0001, 0.01, 0.0005, onInertiaYChange),
             
             Label("Friction"),
-            createSlider(0.5, 0.99, 0.92, onFrictionChange)
+            createSlider(0.5, 0.99, 0.92, onFrictionChange),
+
+            Label("Snap Unit X"),
+            createSlider(0.0, 100.0, initialSnapUnitX, onSnapUnitXChange),
+
+            Label("Snap Unit Y"),
+            createSlider(0.0, 100.0, initialSnapUnitY, onSnapUnitYChange)
         )
 
         return scrollWrapper

@@ -127,6 +127,42 @@ class InertialScrollPane(
         }
 
     /**
+     * スナップ（吸着）機能を有効にするかどうか。
+     */
+    var isSnapEnabled: Boolean
+        get() = behavior.isSnapEnabled
+        set(value) {
+            behavior.isSnapEnabled = value
+        }
+
+    /**
+     * 水平方向のスナップ単位（ピクセル）。
+     */
+    var snapUnitX: Double
+        get() = behavior.snapUnitX
+        set(value) {
+            behavior.snapUnitX = value
+        }
+
+    /**
+     * 垂直方向のスナップ単位（ピクセル）。
+     */
+    var snapUnitY: Double
+        get() = behavior.snapUnitY
+        set(value) {
+            behavior.snapUnitY = value
+        }
+
+    /**
+     * スナップ位置への復元速度。
+     */
+    var snapRestoration: Double
+        get() = behavior.snapRestoration
+        set(value) {
+            behavior.snapRestoration = value
+        }
+
+    /**
      * 振る舞いを解除し、リソースを解放します。
      */
     fun dispose() {
