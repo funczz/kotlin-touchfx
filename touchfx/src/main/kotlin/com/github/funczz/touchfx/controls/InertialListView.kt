@@ -164,6 +164,39 @@ class InertialListView<T>(
         }
 
     /**
+     * Pull-to-Refresh 実行時のコールバック。
+     */
+    var onRefresh: (() -> java.util.concurrent.CompletableFuture<Unit>)?
+        get() = behavior.onRefresh
+        set(value) {
+            behavior.onRefresh = value
+        }
+
+    /**
+     * Pull-to-Refresh をキックするための Bounce しきい値（ピクセル）。
+     */
+    var refreshThreshold: Double
+        get() = behavior.refreshThreshold
+        set(value) {
+            behavior.refreshThreshold = value
+        }
+
+    /**
+     * 現在リフレッシュ実行中かどうか。
+     */
+    val isRefreshing: Boolean
+        get() = behavior.isRefreshing
+
+    /**
+     * リフレッシュ中に表示されるインジケータ。
+     */
+    var refreshIndicator: javafx.scene.Node?
+        get() = behavior.refreshIndicator
+        set(value) {
+            behavior.refreshIndicator = value
+        }
+
+    /**
      * 振る舞いを解除し、リソースを解放します。
      */
     fun dispose() {

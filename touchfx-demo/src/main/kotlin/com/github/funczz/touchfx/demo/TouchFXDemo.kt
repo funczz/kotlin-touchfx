@@ -3,12 +3,16 @@ package com.github.funczz.touchfx.demo
 import com.github.funczz.touchfx.controls.InertialListView
 import com.github.funczz.touchfx.controls.InertialScrollPane
 import javafx.application.Application
+import javafx.application.Platform
 import javafx.geometry.Insets
+import javafx.geometry.Pos
 import javafx.scene.Node
 import javafx.scene.Scene
 import javafx.scene.control.*
 import javafx.scene.layout.*
+import javafx.scene.paint.Color
 import javafx.stage.Stage
+import java.util.concurrent.CompletableFuture
 
 /**
  * TouchFX の機能を体験するためのデモアプリケーション。
@@ -41,9 +45,24 @@ class TouchFXDemo : Application() {
     private fun createListViewDemo(): Node {
         val inertialListView = InertialListView<String>().apply {
             items.addAll((1..500).map { "List Item #$it" })
-            isBounceEnabled = true // デフォルトで有効
+            isBounceEnabled = true
             isSnapEnabled = true
             snapUnitY = 24.0
+            
+            // Pull-to-Refresh 設定
+            refreshIndicator = createIndicator()
+            onRefresh = {
+                val future = CompletableFuture<Unit>()
+                CompletableFuture.runAsync {
+                    Thread.sleep(2000)
+                }.thenRun {
+                    Platform.runLater {
+                        items.add(0, "NEW Item (Refreshed)")
+                        future.complete(Unit)
+                    }
+                }
+                future
+            }
         }
 
         val controlPanel = createControlPanel(
@@ -61,11 +80,15 @@ class TouchFXDemo : Application() {
             initialSnapUnitX = inertialListView.snapUnitX,
             onSnapUnitXChange = { inertialListView.snapUnitX = it },
             initialSnapUnitY = inertialListView.snapUnitY,
-            onSnapUnitYChange = { inertialListView.snapUnitY = it }
+            onSnapUnitYChange = { inertialListView.snapUnitY = it },
+            initialRefreshThreshold = inertialListView.refreshThreshold,
+            onRefreshThresholdChange = { inertialListView.refreshThreshold = it }
         )
 
         return BorderPane().apply {
-            center = inertialListView.listView
+            center = StackPane(inertialListView.refreshIndicator, inertialListView.listView).apply {
+                alignment = Pos.TOP_CENTER
+            }
             right = controlPanel
         }
     }
@@ -83,7 +106,21 @@ class TouchFXDemo : Application() {
 
         val inertialScrollPane = InertialScrollPane().apply {
             this.content = content
-            isBounceEnabled = true // デフォルトで有効
+            isBounceEnabled = true
+            
+            // Pull-to-Refresh 設定
+            refreshIndicator = createIndicator()
+            onRefresh = {
+                val future = CompletableFuture<Unit>()
+                CompletableFuture.runAsync {
+                    Thread.sleep(2000)
+                }.thenRun {
+                    Platform.runLater {
+                        future.complete(Unit)
+                    }
+                }
+                future
+            }
         }
 
         val controlPanel = createControlPanel(
@@ -101,12 +138,26 @@ class TouchFXDemo : Application() {
             initialSnapUnitX = inertialScrollPane.snapUnitX,
             onSnapUnitXChange = { inertialScrollPane.snapUnitX = it },
             initialSnapUnitY = inertialScrollPane.snapUnitY,
-            onSnapUnitYChange = { inertialScrollPane.snapUnitY = it }
+            onSnapUnitYChange = { inertialScrollPane.snapUnitY = it },
+            initialRefreshThreshold = inertialScrollPane.refreshThreshold,
+            onRefreshThresholdChange = { inertialScrollPane.refreshThreshold = it }
         )
 
         return BorderPane().apply {
-            center = inertialScrollPane.scrollPane
+            center = StackPane(inertialScrollPane.refreshIndicator, inertialScrollPane.scrollPane).apply {
+                alignment = Pos.TOP_CENTER
+            }
             right = controlPanel
+        }
+    }
+
+    private fun createIndicator(): Node {
+        return Label("Refreshing...").apply {
+            style = "-fx-background-color: #e0e0e0; -fx-padding: 10 20; -fx-background-radius: 0 0 10 10;"
+            textFill = Color.DARKBLUE
+            isVisible = false
+            maxWidth = Double.MAX_VALUE
+            alignment = Pos.CENTER
         }
     }
 
@@ -125,7 +176,9 @@ class TouchFXDemo : Application() {
         initialSnapUnitX: Double,
         onSnapUnitXChange: (Double) -> Unit,
         initialSnapUnitY: Double,
-        onSnapUnitYChange: (Double) -> Unit
+        onSnapUnitYChange: (Double) -> Unit,
+        initialRefreshThreshold: Double,
+        onRefreshThresholdChange: (Double) -> Unit
     ): Node {
         val panel = VBox(10.0).apply {
             padding = Insets(15.0)
@@ -166,24 +219,20 @@ class TouchFXDemo : Application() {
             
             Label("Sensitivity X"),
             createSlider(0.0001, 0.05, 0.005, onSensitivityXChange),
-            
             Label("Sensitivity Y"),
             createSlider(0.0001, 0.05, 0.005, onSensitivityYChange),
-            
             Label("Inertia X"),
             createSlider(0.0001, 0.01, 0.0005, onInertiaXChange),
-            
             Label("Inertia Y"),
             createSlider(0.0001, 0.01, 0.0005, onInertiaYChange),
-            
             Label("Friction"),
             createSlider(0.5, 0.99, 0.92, onFrictionChange),
-
             Label("Snap Unit X"),
             createSlider(0.0, 100.0, initialSnapUnitX, onSnapUnitXChange),
-
             Label("Snap Unit Y"),
-            createSlider(0.0, 100.0, initialSnapUnitY, onSnapUnitYChange)
+            createSlider(0.0, 100.0, initialSnapUnitY, onSnapUnitYChange),
+            Label("Refresh Threshold"),
+            createSlider(10.0, 200.0, initialRefreshThreshold, onRefreshThresholdChange)
         )
 
         return scrollWrapper

@@ -6,6 +6,7 @@ import javafx.geometry.Orientation
 import javafx.scene.Node
 import javafx.scene.control.ScrollBar
 import javafx.scene.input.MouseEvent
+import java.util.concurrent.CompletableFuture
 import kotlin.math.abs
 import kotlin.math.round
 
@@ -114,6 +115,41 @@ class TouchBehavior(private val node: Node) {
     var snapRestoration: Double = 0.1
 
     /**
+     * Pull-to-Refresh 実行時のコールバック。
+     * 完了時に返される CompletableFuture が完了すると、Bounce 状態が解除されます。
+     */
+    var onRefresh: (() -> CompletableFuture<Unit>)? = null
+
+    /**
+     * Pull-to-Refresh をキックするための Bounce しきい値（ピクセル）。
+     */
+    var refreshThreshold: Double = 50.0
+
+    /**
+     * リフレッシュ中に表示されるインジケータ。
+     */
+    var refreshIndicator: Node? = null
+        set(value) {
+            field?.isVisible = false
+            field = value
+            value?.isVisible = isRefreshing
+        }
+
+    /**
+     * 現在リフレッシュ実行中かどうか。
+     */
+    var isRefreshing: Boolean = false
+        private set(value) {
+            field = value
+            refreshIndicator?.let { indicator ->
+                indicator.isVisible = value
+                if (value) {
+                    indicator.translateY = -indicator.layoutBounds.height // ノードの直上に配置
+                }
+            }
+        }
+
+    /**
      * 手動で設定された垂直スクロールバー。
      */
     var verticalScrollBar: ScrollBar? = null
@@ -150,8 +186,8 @@ class TouchBehavior(private val node: Node) {
             val snapTargetX = if (isSnapEnabled && snapUnitX > 0.0 && !isMovingX) calculateSnapTarget(Orientation.HORIZONTAL) else null
             val snapTargetY = if (isSnapEnabled && snapUnitY > 0.0 && !isMovingY) calculateSnapTarget(Orientation.VERTICAL) else null
             
-            val isSnappingX = snapTargetX != null && abs(findHorizontalScrollBarInternal()?.value ?: 0.0 - snapTargetX) > 0.0001
-            val isSnappingY = snapTargetY != null && abs(findVerticalScrollBarInternal()?.value ?: 0.0 - snapTargetY) > 0.0001
+            val isSnappingX = snapTargetX != null && abs((findHorizontalScrollBarInternal()?.value ?: 0.0) - snapTargetX) > 0.0001
+            val isSnappingY = snapTargetY != null && abs((findVerticalScrollBarInternal()?.value ?: 0.0) - snapTargetY) > 0.0001
 
             if (!isMovingX && !isMovingY && !isRestoringX && !isRestoringY && !isSnappingX && !isSnappingY) {
                 if (isDynamicScrollBarVisible) {
@@ -191,8 +227,8 @@ class TouchBehavior(private val node: Node) {
                 }
             }
 
-            // Bounce の復元
-            if (isBounceEnabled) {
+            // Bounce の復元 (リフレッシュ中は復元を停止して位置を維持する)
+            if (isBounceEnabled && !isRefreshing) {
                 bounceX *= (1.0 - bounceRestoration)
                 bounceY *= (1.0 - bounceRestoration)
                 applyBounceTranslation()
@@ -297,6 +333,28 @@ class TouchBehavior(private val node: Node) {
 
     private fun handleMouseReleased(event: MouseEvent) {
         event.consume()
+        
+        // Pull-to-Refresh の判定 (上端で一定以上引っ張られているか)
+        if (isBounceEnabled && !isRefreshing && bounceY > refreshThreshold) {
+            onRefresh?.let { callback ->
+                isRefreshing = true
+                // 位置をリフレッシュしきい値付近で固定（少し戻す）
+                bounceY = refreshThreshold
+                applyBounceTranslation()
+                
+                callback().thenAccept {
+                    Platform.runLater {
+                        isRefreshing = false
+                        // 復元アニメーションのためにタイマーを再開させる
+                        inertiaTimer.start()
+                    }
+                }.exceptionally {
+                    Platform.runLater { isRefreshing = false; inertiaTimer.start() }
+                    null
+                }
+            }
+        }
+        
         inertiaTimer.start()
     }
 
@@ -327,6 +385,17 @@ class TouchBehavior(private val node: Node) {
     private fun applyBounceTranslation() {
         node.translateX = bounceX
         node.translateY = bounceY
+        
+        // インジケータもコンテンツの移動に追従させる
+        refreshIndicator?.let { indicator ->
+            if (isRefreshing) {
+                // リフレッシュ中は固定位置
+                indicator.translateY = bounceY - indicator.layoutBounds.height
+            } else {
+                // ドラッグ中や復元中はコンテンツの上端に張り付く
+                indicator.translateY = bounceY - indicator.layoutBounds.height
+            }
+        }
     }
 
     private fun resetBounce() {
@@ -343,9 +412,6 @@ class TouchBehavior(private val node: Node) {
         val range = scrollBar.max - scrollBar.min
         if (range <= 0.0) return null
 
-        // 簡易的なピクセル換算: sensitivity を利用して value 単位のスナップ幅を求める
-        // 本来は viewport と content のサイズ比から求めるべきだが、
-        // sensitivity が正しく設定されている前提であれば以下で近似できる
         val sensitivity = if (orientation == Orientation.VERTICAL) sensitivityY else sensitivityX
         val snapValueUnit = snapUnit * sensitivity
         
