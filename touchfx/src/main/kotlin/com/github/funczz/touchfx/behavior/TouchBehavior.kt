@@ -262,7 +262,10 @@ class TouchBehavior(private val node: Node) {
     }
 
     private fun handleMousePressed(event: MouseEvent) {
-        event.consume()
+        // イベントを消費しないように変更。
+        // これにより、RippleEffect や標準の選択挙動が動作するようになる。
+        // event.consume() 
+        
         inertiaTimer.stop()
         if (isDynamicScrollBarVisible) {
             showScrollBars()
@@ -278,7 +281,6 @@ class TouchBehavior(private val node: Node) {
     }
 
     private fun handleMouseDragged(event: MouseEvent) {
-        event.consume()
         val now = System.nanoTime()
         val deltaX = event.sceneX - lastX
         val deltaY = event.sceneY - lastY
@@ -291,6 +293,11 @@ class TouchBehavior(private val node: Node) {
             if (totalDeltaX > lockThreshold || totalDeltaY > lockThreshold) {
                 lockOrientation = if (totalDeltaX > totalDeltaY) Orientation.HORIZONTAL else Orientation.VERTICAL
             }
+        }
+
+        // ドラッグ移動が発生している場合のみイベントを消費する
+        if (lockOrientation != null) {
+            event.consume()
         }
 
         if (deltaTime > 0) {
@@ -332,7 +339,10 @@ class TouchBehavior(private val node: Node) {
     }
 
     private fun handleMouseReleased(event: MouseEvent) {
-        event.consume()
+        // ドラッグ中であった場合はイベントを消費する
+        if (lockOrientation != null) {
+            event.consume()
+        }
         
         // Pull-to-Refresh の判定 (上端で一定以上引っ張られているか)
         if (isBounceEnabled && !isRefreshing && bounceY > refreshThreshold) {

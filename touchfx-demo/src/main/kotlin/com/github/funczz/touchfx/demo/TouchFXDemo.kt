@@ -48,6 +48,7 @@ class TouchFXDemo : Application() {
             isBounceEnabled = true
             isSnapEnabled = true
             snapUnitY = 24.0
+            isRippleEnabled = true // デフォルトで有効
             
             // Pull-to-Refresh 設定
             refreshIndicator = createIndicator()
@@ -82,7 +83,9 @@ class TouchFXDemo : Application() {
             initialSnapUnitY = inertialListView.snapUnitY,
             onSnapUnitYChange = { inertialListView.snapUnitY = it },
             initialRefreshThreshold = inertialListView.refreshThreshold,
-            onRefreshThresholdChange = { inertialListView.refreshThreshold = it }
+            onRefreshThresholdChange = { inertialListView.refreshThreshold = it },
+            initialRippleEnabled = inertialListView.isRippleEnabled,
+            onRippleEnabledChange = { inertialListView.isRippleEnabled = it }
         )
 
         return BorderPane().apply {
@@ -107,6 +110,7 @@ class TouchFXDemo : Application() {
         val inertialScrollPane = InertialScrollPane().apply {
             this.content = content
             isBounceEnabled = true
+            isRippleEnabled = true // デフォルトで有効
             
             // Pull-to-Refresh 設定
             refreshIndicator = createIndicator()
@@ -140,7 +144,9 @@ class TouchFXDemo : Application() {
             initialSnapUnitY = inertialScrollPane.snapUnitY,
             onSnapUnitYChange = { inertialScrollPane.snapUnitY = it },
             initialRefreshThreshold = inertialScrollPane.refreshThreshold,
-            onRefreshThresholdChange = { inertialScrollPane.refreshThreshold = it }
+            onRefreshThresholdChange = { inertialScrollPane.refreshThreshold = it },
+            initialRippleEnabled = inertialScrollPane.isRippleEnabled,
+            onRippleEnabledChange = { inertialScrollPane.isRippleEnabled = it }
         )
 
         return BorderPane().apply {
@@ -178,7 +184,9 @@ class TouchFXDemo : Application() {
         initialSnapUnitY: Double,
         onSnapUnitYChange: (Double) -> Unit,
         initialRefreshThreshold: Double,
-        onRefreshThresholdChange: (Double) -> Unit
+        onRefreshThresholdChange: (Double) -> Unit,
+        initialRippleEnabled: Boolean,
+        onRippleEnabledChange: (Boolean) -> Unit
     ): Node {
         val panel = VBox(10.0).apply {
             padding = Insets(15.0)
@@ -212,6 +220,10 @@ class TouchFXDemo : Application() {
             CheckBox("Snapping").apply {
                 isSelected = initialSnapEnabled
                 selectedProperty().addListener { _, _, newValue -> onSnapEnabledChange(newValue) }
+            },
+            CheckBox("Ripple Effect").apply {
+                isSelected = initialRippleEnabled
+                selectedProperty().addListener { _, _, newValue -> onRippleEnabledChange(newValue) }
             },
             
             Separator(),

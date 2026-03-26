@@ -2,6 +2,7 @@ package com.github.funczz.touchfx.controls
 
 import com.github.funczz.touchfx.TouchFX
 import com.github.funczz.touchfx.behavior.TouchBehavior
+import com.github.funczz.touchfx.skin.RippleEffect
 import javafx.scene.Node
 import javafx.scene.control.ScrollPane
 
@@ -17,6 +18,17 @@ class InertialScrollPane(
 ) {
 
     private val behavior = TouchBehavior(scrollPane)
+
+    /**
+     * クリック時に波紋効果 (Ripple Effect) を表示するかどうか。
+     */
+    var isRippleEnabled: Boolean = false
+        set(value) {
+            field = value
+            if (value) {
+                content?.let { RippleEffect.apply(it) }
+            }
+        }
 
     init {
         if (useDefaultStyle) {
@@ -34,6 +46,9 @@ class InertialScrollPane(
         get() = scrollPane.content
         set(value) {
             scrollPane.content = value
+            if (isRippleEnabled && value != null) {
+                RippleEffect.apply(value)
+            }
         }
 
     /**

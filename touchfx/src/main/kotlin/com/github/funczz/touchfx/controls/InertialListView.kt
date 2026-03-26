@@ -2,7 +2,9 @@ package com.github.funczz.touchfx.controls
 
 import com.github.funczz.touchfx.TouchFX
 import com.github.funczz.touchfx.behavior.TouchBehavior
+import com.github.funczz.touchfx.skin.RippleEffect
 import javafx.collections.ObservableList
+import javafx.scene.control.ListCell
 import javafx.scene.control.ListView
 
 /**
@@ -19,12 +21,41 @@ class InertialListView<T>(
 
     private val behavior = TouchBehavior(listView)
 
+    /**
+     * リストアイテムのクリック時に波紋効果 (Ripple Effect) を表示するかどうか。
+     */
+    var isRippleEnabled: Boolean = false
+        set(value) {
+            field = value
+            updateCellFactory()
+        }
+
     init {
         if (useDefaultStyle) {
             TouchFX.defaultStyleSheet?.let {
                 listView.stylesheets.add(it)
             }
             listView.styleClass.add("touch-fx")
+        }
+        updateCellFactory()
+    }
+
+    private fun updateCellFactory() {
+        listView.setCellFactory { _ ->
+            object : ListCell<T>() {
+                override fun updateItem(item: T, empty: Boolean) {
+                    super.updateItem(item, empty)
+                    if (empty || item == null) {
+                        text = null
+                        graphic = null
+                    } else {
+                        text = item.toString()
+                        if (isRippleEnabled) {
+                            RippleEffect.apply(this)
+                        }
+                    }
+                }
+            }
         }
     }
 
