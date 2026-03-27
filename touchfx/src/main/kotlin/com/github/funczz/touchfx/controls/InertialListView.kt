@@ -4,11 +4,15 @@ import com.github.funczz.touchfx.TouchFX
 import com.github.funczz.touchfx.behavior.TouchBehavior
 import com.github.funczz.touchfx.skin.RippleEffect
 import javafx.collections.ObservableList
+import javafx.scene.Node
+import javafx.scene.control.Label
 import javafx.scene.control.ListCell
 import javafx.scene.control.ListView
+import javafx.scene.layout.AnchorPane
 
 /**
  * 慣性スクロール機能を持つ [ListView] のラッパーコンポーネントです。
+ * リストアイテムのスワイプアクションにも対応しています。
  *
  * @param T リストアイテムの型
  * @property listView ラップされた標準の [ListView]
@@ -25,6 +29,48 @@ class InertialListView<T>(
      * リストアイテムのクリック時に波紋効果 (Ripple Effect) を表示するかどうか。
      */
     var isRippleEnabled: Boolean = false
+        set(value) {
+            if (field != value) {
+                field = value
+                updateCellFactory()
+            }
+        }
+
+    /**
+     * 右側にスワイプした際に表示されるノードを生成するファクトリ。
+     * 引数: (アイテム, SwipeableContainer)
+     */
+    var swipeLeftFactory: ((T, SwipeableContainer) -> Node)? = null
+        set(value) {
+            field = value
+            updateCellFactory()
+        }
+
+    /**
+     * 左側にスワイプした際に表示されるノードを生成するファクトリ。
+     * 引数: (アイテム, SwipeableContainer)
+     */
+    var swipeRightFactory: ((T, SwipeableContainer) -> Node)? = null
+        set(value) {
+            field = value
+            updateCellFactory()
+        }
+
+    /**
+     * スワイプアクションを確定させるしきい値（ピクセル）。
+     */
+    var swipeThreshold: Double = 50.0
+        set(value) {
+            field = value
+            updateCellFactory()
+        }
+
+    /**
+     * セルのメインコンテンツを生成するファクトリ。
+     * デフォルトでは Label によるテキスト表示が行われます。
+     * スワイプ機能や Ripple 効果はこのカスタムノードを包む形で適用されます。
+     */
+    var cellContentFactory: ((T) -> Node)? = null
         set(value) {
             field = value
             updateCellFactory()
@@ -43,13 +89,46 @@ class InertialListView<T>(
     private fun updateCellFactory() {
         listView.setCellFactory { _ ->
             object : ListCell<T>() {
+                private var swipeContainer: SwipeableContainer? = null
+                private var currentContent: Node? = null
+
                 override fun updateItem(item: T, empty: Boolean) {
                     super.updateItem(item, empty)
                     if (empty || item == null) {
                         text = null
                         graphic = null
+                        swipeContainer = null
+                        currentContent = null
                     } else {
-                        text = item.toString()
+                        // コンテンツの取得
+                        val content = cellContentFactory?.invoke(item) ?: Label(item.toString()).apply {
+                            maxWidth = Double.MAX_VALUE
+                            styleClass.add("label")
+                        }
+                        currentContent = content
+
+                        // スワイプ機能が有効な場合、SwipeableContainer でラップする
+                        if (swipeLeftFactory != null || swipeRightFactory != null) {
+                            val wrapper = AnchorPane(content).apply {
+                                style = "-fx-background-color: white;" // セルの背景を不透明に
+                                AnchorPane.setTopAnchor(content, 0.0)
+                                AnchorPane.setBottomAnchor(content, 0.0)
+                                AnchorPane.setLeftAnchor(content, 10.0)
+                                AnchorPane.setRightAnchor(content, 10.0)
+                            }
+
+                            swipeContainer = SwipeableContainer(wrapper).apply {
+                                threshold = swipeThreshold
+                                leftBackgroundNode = swipeLeftFactory?.invoke(item, this)
+                                rightBackgroundNode = swipeRightFactory?.invoke(item, this)
+                            }
+                            graphic = swipeContainer
+                            text = null
+                        } else {
+                            graphic = content
+                            text = null
+                        }
+
                         if (isRippleEnabled) {
                             RippleEffect.apply(this)
                         }

@@ -67,7 +67,7 @@ class TouchBehavior(private val node: Node) {
      * スクロール方向のロックを有効にするかどうか。
      * true の場合、ドラッグ開始時の移動方向に基づいて水平または垂直に固定されます。
      */
-    var isDirectionLockEnabled: Boolean = true
+    var isDirectionLockEnabled: Boolean = false
 
     /**
      * スクロールバーを動的に表示するかどうか。

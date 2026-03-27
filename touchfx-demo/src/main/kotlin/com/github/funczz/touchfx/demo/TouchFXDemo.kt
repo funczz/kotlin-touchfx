@@ -2,6 +2,7 @@ package com.github.funczz.touchfx.demo
 
 import com.github.funczz.touchfx.controls.InertialListView
 import com.github.funczz.touchfx.controls.InertialScrollPane
+import com.github.funczz.touchfx.controls.SwipeableContainer
 import javafx.application.Application
 import javafx.application.Platform
 import javafx.geometry.Insets
@@ -11,6 +12,7 @@ import javafx.scene.Scene
 import javafx.scene.control.*
 import javafx.scene.layout.*
 import javafx.scene.paint.Color
+import javafx.scene.shape.Circle
 import javafx.stage.Stage
 import java.util.concurrent.CompletableFuture
 
@@ -47,10 +49,35 @@ class TouchFXDemo : Application() {
             items.addAll((1..500).map { "List Item #$it" })
             isBounceEnabled = true
             isSnapEnabled = true
-            snapUnitY = 24.0
-            isRippleEnabled = true // デフォルトで有効
+            snapUnitY = 60.0 // カスタムセルの高さに合わせる
+            isRippleEnabled = true
             
-            // Pull-to-Refresh 設定
+            // セルの見た目をカスタマイズ
+            cellContentFactory = { item ->
+                HBox(15.0).apply {
+                    alignment = Pos.CENTER_LEFT
+                    padding = Insets(10.0, 15.0, 10.0, 15.0)
+                    prefHeight = 60.0
+                    style = "-fx-background-color: white; -fx-border-color: #eeeeee; -fx-border-width: 0 0 1 0;"
+                    
+                    // アイコンプレースホルダ
+                    val icon = Circle(18.0, Color.web("#673AB7", 0.8))
+                    
+                    // テキストコンテナ
+                    val textContainer = VBox(2.0).apply {
+                        alignment = Pos.CENTER_LEFT
+                        children.addAll(
+                            Label(item).apply { style = "-fx-font-weight: bold; -fx-font-size: 1.1em;" },
+                            Label("Tap or swipe this item to see effects").apply { style = "-fx-text-fill: gray; -fx-font-size: 0.9em;" }
+                        )
+                    }
+                    
+                    children.addAll(icon, textContainer)
+                    maxWidth = Double.MAX_VALUE
+                }
+            }
+
+            // Pull-to-Refresh
             refreshIndicator = createIndicator()
             onRefresh = {
                 val future = CompletableFuture<Unit>()
@@ -63,6 +90,43 @@ class TouchFXDemo : Application() {
                     }
                 }
                 future
+            }
+
+            // Swipe Actions
+            swipeLeftFactory = { item, container ->
+                HBox().apply {
+                    alignment = Pos.CENTER_LEFT
+                    style = "-fx-background-color: #2196F3;"
+                    prefWidth = 80.0
+                    children.add(Button("Edit").apply {
+                        style = "-fx-background-color: transparent; -fx-text-fill: white;"
+                        maxWidth = Double.MAX_VALUE
+                        maxHeight = Double.MAX_VALUE
+                        HBox.setHgrow(this, Priority.ALWAYS)
+                        setOnAction { 
+                            println("Edit clicked: $item")
+                            container.reset()
+                        }
+                    })
+                }
+            }
+            swipeRightFactory = { item, container ->
+                HBox().apply {
+                    alignment = Pos.CENTER_RIGHT
+                    style = "-fx-background-color: #F44336;"
+                    prefWidth = 80.0
+                    children.add(Button("Delete").apply {
+                        style = "-fx-background-color: transparent; -fx-text-fill: white;"
+                        maxWidth = Double.MAX_VALUE
+                        maxHeight = Double.MAX_VALUE
+                        HBox.setHgrow(this, Priority.ALWAYS)
+                        setOnAction { 
+                            println("Delete clicked: $item")
+                            container.reset(animate = false)
+                            items.remove(item)
+                        }
+                    })
+                }
             }
         }
 
@@ -101,7 +165,7 @@ class TouchFXDemo : Application() {
             padding = Insets(20.0)
             children.addAll((1..100).map {
                 Label("ScrollPane Content Label #$it").apply {
-                    style = "-fx-font-size: 18px; -fx-border-color: lightgray; -fx-padding: 10;"
+                    style = "-fx-font-size: 18px; -fx-border-color: lightgray; -fx-padding: 10; -fx-background-color: white;"
                     minWidth = 1000.0
                 }
             })
@@ -110,9 +174,9 @@ class TouchFXDemo : Application() {
         val inertialScrollPane = InertialScrollPane().apply {
             this.content = content
             isBounceEnabled = true
-            isRippleEnabled = true // デフォルトで有効
+            isRippleEnabled = true
             
-            // Pull-to-Refresh 設定
+            // Pull-to-Refresh
             refreshIndicator = createIndicator()
             onRefresh = {
                 val future = CompletableFuture<Unit>()
@@ -206,7 +270,7 @@ class TouchFXDemo : Application() {
             
             Label("Features").apply { style = "-fx-font-weight: bold;" },
             CheckBox("Direction Lock").apply {
-                isSelected = true
+                isSelected = false
                 selectedProperty().addListener { _, _, newValue -> onDirectionLockChange(newValue) }
             },
             CheckBox("Dynamic ScrollBar").apply {
