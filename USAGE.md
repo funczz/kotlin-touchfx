@@ -12,7 +12,7 @@ dependencies {
 }
 ```
 
-※ 現在開発中のため、ローカルビルドまたは Maven ローカルリポジトリ経うでの利用を想定しています。
+※ 現在開発中のため、ローカルビルドまたは Maven ローカルリポジトリ経由での利用を想定しています。
 
 ## 2. 基本的な使い方
 
@@ -49,7 +49,7 @@ TouchFX には、タッチ操作をより快適にするための高度な機能
 ドラッグ開始時の移動方向に基づいて、スクロール軸を水平または垂直に固定します。斜め方向の誤操作を防ぐのに有効です。
 
 ```kotlin
-// 有効化 (デフォルト: true)
+// 有効化 (デフォルト: false)
 inertialScrollPane.isDirectionLockEnabled = true
 ```
 
@@ -71,23 +71,89 @@ inertialScrollPane.isDynamicScrollBarVisible = true
 inertialScrollPane.isBounceEnabled = true
 ```
 
-### 3.4 方向別の感度・慣性設定
+### 3.4 スナップ機能 (Snapping)
 
-水平方向 (X) と垂直方向 (Y) で個別にパラメータを設定可能です。
+指定したピクセル単位でスクロール位置を吸着（スナップ）させます。カード型のレイアウトや、項目ごとのページングに有効です。
 
 ```kotlin
-// 個別設定
-inertialScrollPane.sensitivityX = 0.01
-inertialScrollPane.sensitivityY = 0.005
-
-inertialScrollPane.inertiaX = 0.001
-inertialScrollPane.inertiaY = 0.0005
-
-// 一括設定
-inertialScrollPane.sensitivity = 0.008
+// 有効化
+inertialListView.isSnapEnabled = true
+inertialListView.snapUnitY = 60.0 // 60px ごとにスナップ
 ```
 
-## 4. パラメータの調整
+### 3.5 Pull-to-Refresh (引っ張って更新)
+
+リストを上限を超えて引っ張った際に、非同期の更新処理を実行します。
+
+```kotlin
+// リフレッシュ用インジケータの設定
+inertialListView.refreshIndicator = Label("Refreshing...")
+
+// 更新処理の登録 (CompletableFuture を返す)
+inertialListView.onRefresh = {
+    CompletableFuture.runAsync {
+        // 更新ロジック...
+        Thread.sleep(2000)
+    }.thenRun {
+        Platform.runLater {
+            // UIの更新...
+        }
+    }
+}
+```
+
+### 3.6 タッチフィードバック (Ripple Effect)
+
+タップした位置から波紋が広がる視覚効果を付与します。
+
+```kotlin
+// 有効化 (デフォルト: false)
+inertialListView.isRippleEnabled = true
+```
+
+### 3.7 スワイプアクション (Swipe Actions)
+
+リストアイテムを左右にスワイプして、アクションボタン（編集、削除など）を表示します。
+
+```kotlin
+// 右スワイプ（左側に表示されるアクション）の設定
+inertialListView.swipeLeftFactory = { item, container ->
+    Button("Edit").apply {
+        setOnAction { 
+            // アクション実行
+            container.reset() // コンテナを閉じる
+        }
+    }
+}
+
+// 左スワイプ（右側に表示されるアクション）の設定
+inertialListView.swipeRightFactory = { item, container ->
+    Button("Delete").apply {
+        style = "-fx-background-color: red; -fx-text-fill: white;"
+        setOnAction { 
+            items.remove(item)
+            container.reset(animate = false)
+        }
+    }
+}
+```
+
+## 4. セルのカスタマイズ
+
+`InertialListView` では、セルの見た目を完全に自由に定義できます。
+
+```kotlin
+inertialListView.cellContentFactory = { item ->
+    // アイコンとテキストを並べたカスタムレイアウトを返す
+    HBox(10.0).apply {
+        alignment = Pos.CENTER_LEFT
+        children.addAll(ImageView(item.icon), Label(item.name))
+        style = "-fx-background-color: white;" // 背景の設定を推奨
+    }
+}
+```
+
+## 5. パラメータの調整
 
 スクロールの挙動は、以下のプロパティを通じて動的に調整可能です。
 
@@ -95,7 +161,7 @@ inertialScrollPane.sensitivity = 0.008
 - `inertia`: 慣性の強さ。値が大きいほど、指を離した後のスクロール距離が長くなります。
 - `friction`: 摩擦係数（減速率）。`0.0` から `1.0` の間で指定し、小さいほど早く停止します（デフォルト: `0.92`）。
 
-## 5. スタイリング
+## 6. スタイリング
 
 デフォルトでタッチ操作に最適化された CSS（細いスクロールバーなど）が適用されます。
 これを無効化するには、コンストラクタで `useDefaultStyle = false` を指定してください。
@@ -104,7 +170,7 @@ inertialScrollPane.sensitivity = 0.008
 val listView = InertialListView<String>(useDefaultStyle = false)
 ```
 
-## 6. デモアプリケーションの実行
+## 7. デモアプリケーションの実行
 
 ライブラリの機能を体験できるデモアプリケーションを、以下のコマンドで実行できます。
 
