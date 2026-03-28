@@ -155,28 +155,36 @@ inertialListView.cellContentFactory = { item ->
 
 ## 5. ジェスチャー操作 (Gestures)
 
-任意のノードに対して、マルチタッチによる拡大・縮小や回転、長押しなどの高次ジェスチャーを簡単に追加できます。マウス環境向けのシミュレーションもサポートされています。
+任意のノードに対して、マルチタッチによる拡大・縮小や回転、長押しなどの高次ジェスチャーを簡単に追加できます。
 
 ```kotlin
 val myNode = Rectangle(100.0, 100.0, Color.BLUE)
 
-myNode.addGestureBehavior {
-    // ピンチまたは Ctrl + マウススクロール
-    onPinch = { factor ->
-        myNode.scaleX *= factor
-        myNode.scaleY *= factor
-    }
-    
-    // 回転（マルチタッチ）
-    onRotate = { delta ->
-        myNode.rotate += delta
-    }
-    
-    // 長押し（一定時間、指またはマウスボタンを離さない）
-    onLongPress = { x, y ->
-        println("Long press at: $x, $y")
-    }
+val behavior = myNode.addGestureBehavior {
+    onPinch = { factor -> myNode.scaleX *= factor; myNode.scaleY *= factor }
+    onRotate = { delta -> myNode.rotate += delta }
+    onLongPress = { x, y -> println("Long press at: $x, $y") }
 }
+```
+
+### 5.1 マウス・キーボードシミュレーション
+
+マルチタッチ非対応環境（デスクトップ等）向けに、以下の操作が自動的に有効になります。
+
+- **Zoom**: Ctrl + マウススクロール
+- **Rotate**: Alt + マウススクロール
+- **Pinch & Rotate**: Shift + マウスドラッグ（ノード中心を支点とした疑似マルチタッチ）
+
+### 5.2 シミュレーションモードの強制
+
+特定のプロパティを有効にすることで、通常のドラッグ操作をジェスチャーとして扱うことができます。
+
+```kotlin
+// 通常のドラッグでピンチ（拡大縮小）を操作
+behavior.isPinchSimulationEnabled = true
+
+// 通常のドラッグで回転を操作
+behavior.isRotateSimulationEnabled = true
 ```
 
 ## 6. パラメータの調整
