@@ -19,13 +19,14 @@ dependencies {
 ### InertialListView
 
 標準の `ListView` をラップし、慣性スクロール機能を付与します。
+スティッキーヘッダー等のオーバーレイ機能を使用するため、シーングラフには `listView` ではなく `root` を追加してください。
 
 ```kotlin
 val inertialListView = InertialListView<String>()
 inertialListView.items.addAll("Item 1", "Item 2", "Item 3")
 
-// 内部の ListView インスタンスをシーングラフに追加
-root.children.add(inertialListView.listView)
+// root (StackPane) をシーングラフに追加
+root.children.add(inertialListView.root)
 ```
 
 ### InertialScrollPane
@@ -113,29 +114,32 @@ inertialListView.isRippleEnabled = true
 
 ### 3.7 スワイプアクション (Swipe Actions)
 
-リストアイテムを左右にスワイプして、アクションボタン（編集、削除など）を表示します。
+リストアイテムを左右にスワイプして、アクションボタン（編集、削除など）を表示します。ファクトリで `null` を返すとそのアイテムのスワイプを無効化できます。
 
 ```kotlin
 // 右スワイプ（左側に表示されるアクション）の設定
 inertialListView.swipeLeftFactory = { item, container ->
-    Button("Edit").apply {
-        setOnAction { 
-            // アクション実行
-            container.reset() // コンテナを閉じる
+    if (isSpecialItem(item)) null else {
+        Button("Edit").apply {
+            setOnAction { 
+                // アクション実行
+                container.reset() // コンテナを閉じる
+            }
         }
     }
 }
+```
 
-// 左スワイプ（右側に表示されるアクション）の設定
-inertialListView.swipeRightFactory = { item, container ->
-    Button("Delete").apply {
-        style = "-fx-background-color: red; -fx-text-fill: white;"
-        setOnAction { 
-            items.remove(item)
-            container.reset(animate = false)
-        }
-    }
-}
+### 3.8 スティッキーヘッダー (Sticky Headers)
+
+リスト内の見出し項目を上端に固定して表示します。
+
+```kotlin
+// ヘッダー判定条件の設定
+inertialListView.isHeader = { it.startsWith("HEADER:") }
+
+// 有効化
+inertialListView.stickyHeaderEnabled = true
 ```
 
 ## 4. セルのカスタマイズ
@@ -174,18 +178,6 @@ val behavior = myNode.addGestureBehavior {
 - **Zoom**: Ctrl + マウススクロール
 - **Rotate**: Alt + マウススクロール
 - **Pinch & Rotate**: Shift + マウスドラッグ（ノード中心を支点とした疑似マルチタッチ）
-
-### 5.2 シミュレーションモードの強制
-
-特定のプロパティを有効にすることで、通常のドラッグ操作をジェスチャーとして扱うことができます。
-
-```kotlin
-// 通常のドラッグでピンチ（拡大縮小）を操作
-behavior.isPinchSimulationEnabled = true
-
-// 通常のドラッグで回転を操作
-behavior.isRotateSimulationEnabled = true
-```
 
 ## 6. パラメータの調整
 
