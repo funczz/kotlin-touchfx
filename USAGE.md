@@ -153,7 +153,33 @@ inertialListView.cellContentFactory = { item ->
 }
 ```
 
-## 5. パラメータの調整
+## 5. ジェスチャー操作 (Gestures)
+
+任意のノードに対して、マルチタッチによる拡大・縮小や回転、長押しなどの高次ジェスチャーを簡単に追加できます。マウス環境向けのシミュレーションもサポートされています。
+
+```kotlin
+val myNode = Rectangle(100.0, 100.0, Color.BLUE)
+
+myNode.addGestureBehavior {
+    // ピンチまたは Ctrl + マウススクロール
+    onPinch = { factor ->
+        myNode.scaleX *= factor
+        myNode.scaleY *= factor
+    }
+    
+    // 回転（マルチタッチ）
+    onRotate = { delta ->
+        myNode.rotate += delta
+    }
+    
+    // 長押し（一定時間、指またはマウスボタンを離さない）
+    onLongPress = { x, y ->
+        println("Long press at: $x, $y")
+    }
+}
+```
+
+## 6. パラメータの調整
 
 スクロールの挙動は、以下のプロパティを通じて動的に調整可能です。
 
@@ -161,7 +187,7 @@ inertialListView.cellContentFactory = { item ->
 - `inertia`: 慣性の強さ。値が大きいほど、指を離した後のスクロール距離が長くなります。
 - `friction`: 摩擦係数（減速率）。`0.0` から `1.0` の間で指定し、小さいほど早く停止します（デフォルト: `0.92`）。
 
-## 6. スタイリング
+## 7. スタイリング
 
 デフォルトでタッチ操作に最適化された CSS（細いスクロールバーなど）が適用されます。
 これを無効化するには、コンストラクタで `useDefaultStyle = false` を指定してください。
@@ -170,7 +196,7 @@ inertialListView.cellContentFactory = { item ->
 val listView = InertialListView<String>(useDefaultStyle = false)
 ```
 
-## 7. デモアプリケーションの実行
+## 8. デモアプリケーションの実行
 
 ライブラリの機能を体験できるデモアプリケーションを、以下のコマンドで実行できます。
 

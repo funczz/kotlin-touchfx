@@ -1,5 +1,7 @@
 package com.github.funczz.touchfx.demo
 
+import com.github.funczz.touchfx.behavior.GestureBehavior
+import com.github.funczz.touchfx.behavior.addGestureBehavior
 import com.github.funczz.touchfx.controls.InertialListView
 import com.github.funczz.touchfx.controls.InertialScrollPane
 import com.github.funczz.touchfx.controls.SwipeableContainer
@@ -13,6 +15,7 @@ import javafx.scene.control.*
 import javafx.scene.layout.*
 import javafx.scene.paint.Color
 import javafx.scene.shape.Circle
+import javafx.scene.shape.Rectangle
 import javafx.stage.Stage
 import java.util.concurrent.CompletableFuture
 
@@ -36,7 +39,13 @@ class TouchFXDemo : Application() {
             content = createScrollPaneDemo()
         }
 
-        tabPane.tabs.addAll(listViewTab, scrollPaneTab)
+        // Tab 3: Gestures
+        val gesturesTab = Tab("Gestures").apply {
+            isClosable = false
+            content = createGesturesDemo()
+        }
+
+        tabPane.tabs.addAll(listViewTab, scrollPaneTab, gesturesTab)
 
         val root = BorderPane(tabPane)
         primaryStage.title = "TouchFX Demo"
@@ -219,6 +228,84 @@ class TouchFXDemo : Application() {
             }
             right = controlPanel
         }
+    }
+
+    private fun createGesturesDemo(): Node {
+        val statusLabel = Label("Gesture Status: None").apply {
+            style = "-fx-font-size: 16px; -fx-font-weight: bold; -fx-text-fill: #333;"
+        }
+
+        val target = Rectangle(200.0, 200.0, Color.LIGHTBLUE).apply {
+            stroke = Color.BLUE
+            strokeWidth = 2.0
+            arcWidth = 20.0
+            arcHeight = 20.0
+        }
+
+        val behavior = target.addGestureBehavior {
+            onPinch = { factor ->
+                target.scaleX *= factor
+                target.scaleY *= factor
+                statusLabel.text = "Gesture Status: Pinch (factor=${"%.2f".format(factor)})"
+            }
+            onRotate = { delta ->
+                target.rotate += delta
+                statusLabel.text = "Gesture Status: Rotate (delta=${"%.2f".format(delta)})"
+            }
+            onLongPress = { _, _ ->
+                target.fill = if (target.fill == Color.LIGHTBLUE) Color.LIGHTCORAL else Color.LIGHTBLUE
+                statusLabel.text = "Gesture Status: Long Press detected!"
+            }
+        }
+
+        val controlPanel = VBox(15.0).apply {
+            padding = Insets(20.0)
+            style = "-fx-background-color: #f4f4f4; -fx-border-color: #ddd; -fx-border-width: 0 0 0 1;"
+            prefWidth = 250.0
+            
+            children.addAll(
+                Label("Simulation Settings").apply { style = "-fx-font-weight: bold;" },
+                CheckBox("Enable Pinch Simulation").apply {
+                    selectedProperty().addListener { _, _, newValue -> behavior.isPinchSimulationEnabled = newValue }
+                },
+                CheckBox("Enable Rotate Simulation").apply {
+                    selectedProperty().addListener { _, _, newValue -> behavior.isRotateSimulationEnabled = newValue }
+                },
+                Separator(),
+                Button("Reset Transform").apply {
+                    maxWidth = Double.MAX_VALUE
+                    setOnAction {
+                        target.scaleX = 1.0
+                        target.scaleY = 1.0
+                        target.rotate = 0.0
+                        target.fill = Color.LIGHTBLUE
+                        statusLabel.text = "Gesture Status: None"
+                    }
+                }
+            )
+        }
+
+        val instructionLabel = Label(
+            "Instructions:\n" +
+            "• Mouse/Keyboard Simulation:\n" +
+            "  - Shift + Drag: Pinch & Rotate\n" +
+            "  - Ctrl + Scroll: Zoom\n" +
+            "  - Alt + Scroll: Rotate\n" +
+            "  - Long Press: Hold mouse button\n" +
+            "• Simulation Modes (Use CheckBoxes):\n" +
+            "  - Normal Drag will perform the gesture"
+        ).apply {
+            style = "-fx-text-fill: #666; -fx-line-spacing: 5; -fx-background-color: #f9f9f9; -fx-padding: 15; -fx-border-color: #ddd; -fx-border-radius: 5;"
+        }
+
+        val mainArea = VBox(30.0).apply {
+            alignment = Pos.CENTER
+            padding = Insets(50.0)
+            children.addAll(statusLabel, target, instructionLabel)
+            HBox.setHgrow(this, Priority.ALWAYS)
+        }
+
+        return HBox(mainArea, controlPanel)
     }
 
     private fun createIndicator(): Node {
