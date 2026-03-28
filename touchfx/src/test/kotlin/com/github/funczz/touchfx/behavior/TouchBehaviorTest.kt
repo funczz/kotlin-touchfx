@@ -242,11 +242,97 @@ class TouchBehaviorTest {
         }
         WaitForAsyncUtils.waitForFxEvents()
 
-        // 復元アニメーションを長めに待つ
+        // 復元アニメーションを待つ
         Thread.sleep(2500)
         WaitForAsyncUtils.waitForFxEvents()
         
         assertEquals(0.0, root.translateY, 0.5)
+        Platform.runLater { behavior?.dispose() }
+        WaitForAsyncUtils.waitForFxEvents()
+    }
+
+    /**
+     * 方向別のバウンス有効化を検証します。
+     */
+    @Test
+    fun testDirectionalBounce(@Suppress("UNUSED_PARAMETER") robot: FxRobot) {
+        var behavior: TouchBehavior? = null
+        Platform.runLater {
+            vScrollBar.value = 0.0
+            hScrollBar.value = 0.0
+            behavior = TouchBehavior(root).apply {
+                isDirectionLockEnabled = false
+                isBounceEnabledX = true
+                isBounceEnabledY = false
+                verticalScrollBar = vScrollBar
+                horizontalScrollBar = hScrollBar
+                sensitivity = 1.0
+            }
+        }
+        WaitForAsyncUtils.waitForFxEvents()
+
+        Platform.runLater {
+            javafx.event.Event.fireEvent(root, MouseEvent(
+                MouseEvent.MOUSE_PRESSED, 200.0, 200.0, 200.0, 200.0,
+                javafx.scene.input.MouseButton.PRIMARY, 1,
+                false, false, false, false, true, false, false, false, false, false, null
+            ))
+        }
+        WaitForAsyncUtils.waitForFxEvents()
+
+        Platform.runLater {
+            // 右下へドラッグ
+            javafx.event.Event.fireEvent(root, MouseEvent(
+                MouseEvent.MOUSE_DRAGGED, 300.0, 300.0, 300.0, 300.0,
+                javafx.scene.input.MouseButton.PRIMARY, 1,
+                false, false, false, false, true, false, false, false, false, false, null
+            ))
+        }
+        WaitForAsyncUtils.waitForFxEvents()
+        Thread.sleep(100)
+        WaitForAsyncUtils.waitForFxEvents()
+        
+        assertTrue(root.translateX > 0.0, "Horizontal bounce should be active. translateX: ${root.translateX}")
+        assertEquals(0.0, root.translateY, 0.001, "Vertical bounce should be inactive. translateY: ${root.translateY}")
+
+        Platform.runLater {
+            // Y だけ有効化に切り替え
+            behavior?.isBounceEnabledX = false
+            behavior?.isBounceEnabledY = true
+            root.translateX = 0.0
+            root.translateY = 0.0
+            
+            // 重要: lastX/Y を更新させるために再度 PRESSED を発行
+            javafx.event.Event.fireEvent(root, MouseEvent(
+                MouseEvent.MOUSE_PRESSED, 200.0, 200.0, 200.0, 200.0,
+                javafx.scene.input.MouseButton.PRIMARY, 1,
+                false, false, false, false, true, false, false, false, false, false, null
+            ))
+        }
+        WaitForAsyncUtils.waitForFxEvents()
+
+        Platform.runLater {
+            // 右下へドラッグ
+            javafx.event.Event.fireEvent(root, MouseEvent(
+                MouseEvent.MOUSE_DRAGGED, 300.0, 300.0, 300.0, 300.0,
+                javafx.scene.input.MouseButton.PRIMARY, 1,
+                false, false, false, false, true, false, false, false, false, false, null
+            ))
+        }
+        WaitForAsyncUtils.waitForFxEvents()
+        Thread.sleep(100)
+        WaitForAsyncUtils.waitForFxEvents()
+
+        assertEquals(0.0, root.translateX, 0.001, "Horizontal bounce should be inactive. translateX: ${root.translateX}")
+        assertTrue(root.translateY > 0.0, "Vertical bounce should be active. translateY: ${root.translateY}")
+
+        Platform.runLater {
+            javafx.event.Event.fireEvent(root, MouseEvent(
+                MouseEvent.MOUSE_RELEASED, 300.0, 300.0, 300.0, 300.0,
+                javafx.scene.input.MouseButton.PRIMARY, 1,
+                false, false, false, false, true, false, false, false, false, false, null
+            ))
+        }
         Platform.runLater { behavior?.dispose() }
         WaitForAsyncUtils.waitForFxEvents()
     }

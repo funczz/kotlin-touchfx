@@ -84,14 +84,33 @@ class TouchBehavior(private val node: Node) {
         }
 
     /**
-     * 境界での跳ね返り (Bounce) を有効にするかどうか。
+     * 境界での跳ね返り (Bounce) を有効にするかどうか (一括設定用)。
      */
-    var isBounceEnabled: Boolean = false
+    var isBounceEnabled: Boolean
+        get() = isBounceEnabledX && isBounceEnabledY
+        set(value) {
+            isBounceEnabledX = value
+            isBounceEnabledY = value
+        }
+
+    /**
+     * 水平方向の境界での跳ね返り (Bounce) を有効にするかどうか。
+     */
+    var isBounceEnabledX: Boolean = false
         set(value) {
             field = value
-            if (!value) {
-                resetBounce()
-            }
+            if (!value) bounceX = 0.0
+            applyBounceTranslation()
+        }
+
+    /**
+     * 垂直方向の境界での跳ね返り (Bounce) を有効にするかどうか。
+     */
+    var isBounceEnabledY: Boolean = false
+        set(value) {
+            field = value
+            if (!value) bounceY = 0.0
+            applyBounceTranslation()
         }
 
     /**
@@ -177,8 +196,8 @@ class TouchBehavior(private val node: Node) {
 
     private val inertiaTimer = object : AnimationTimer() {
         override fun handle(now: Long) {
-            val isRestoringX = isBounceEnabled && abs(bounceX) > 0.1
-            val isRestoringY = isBounceEnabled && abs(bounceY) > 0.1
+            val isRestoringX = abs(bounceX) > 0.1
+            val isRestoringY = abs(bounceY) > 0.1
             val isMovingX = abs(velocityX) > 0.1
             val isMovingY = abs(velocityY) > 0.1
             
@@ -203,7 +222,7 @@ class TouchBehavior(private val node: Node) {
                     if (isMovingY) {
                         val scrollDelta = velocityY * inertiaY
                         scrollBar.value = (scrollBar.value - scrollDelta).coerceIn(scrollBar.min, scrollBar.max)
-                        if (isBounceEnabled && (scrollBar.value <= scrollBar.min || scrollBar.value >= scrollBar.max)) {
+                        if (isBounceEnabledY && (scrollBar.value <= scrollBar.min || scrollBar.value >= scrollBar.max)) {
                             bounceY += (velocityY * inertiaY * 100.0)
                         }
                     } else if (snapTargetY != null) {
@@ -218,7 +237,7 @@ class TouchBehavior(private val node: Node) {
                     if (isMovingX) {
                         val scrollDelta = velocityX * inertiaX
                         scrollBar.value = (scrollBar.value - scrollDelta).coerceIn(scrollBar.min, scrollBar.max)
-                        if (isBounceEnabled && (scrollBar.value <= scrollBar.min || scrollBar.value >= scrollBar.max)) {
+                        if (isBounceEnabledX && (scrollBar.value <= scrollBar.min || scrollBar.value >= scrollBar.max)) {
                             bounceX += (velocityX * inertiaX * 100.0)
                         }
                     } else if (snapTargetX != null) {
@@ -228,9 +247,9 @@ class TouchBehavior(private val node: Node) {
             }
 
             // Bounce の復元 (リフレッシュ中は復元を停止して位置を維持する)
-            if (isBounceEnabled && !isRefreshing) {
-                bounceX *= (1.0 - bounceRestoration)
-                bounceY *= (1.0 - bounceRestoration)
+            if (!isRefreshing) {
+                if (isRestoringX) bounceX *= (1.0 - bounceRestoration)
+                if (isRestoringY) bounceY *= (1.0 - bounceRestoration)
                 applyBounceTranslation()
             }
 
@@ -314,12 +333,12 @@ class TouchBehavior(private val node: Node) {
             findVerticalScrollBarInternal()?.let { scrollBar ->
                 val scrollAmount = deltaY * sensitivityY
                 val newValue = scrollBar.value - scrollAmount
-                scrollBar.value = newValue.coerceIn(scrollBar.min, scrollBar.max)
                 
-                if (isBounceEnabled && (newValue < scrollBar.min || newValue > scrollBar.max)) {
+                if (isBounceEnabledY && (newValue < scrollBar.min || newValue > scrollBar.max)) {
                     bounceY += deltaY * bounceFriction
                     applyBounceTranslation()
                 }
+                scrollBar.value = newValue.coerceIn(scrollBar.min, scrollBar.max)
             }
         }
 
@@ -328,12 +347,12 @@ class TouchBehavior(private val node: Node) {
             findHorizontalScrollBarInternal()?.let { scrollBar ->
                 val scrollAmount = deltaX * sensitivityX
                 val newValue = scrollBar.value - scrollAmount
-                scrollBar.value = newValue.coerceIn(scrollBar.min, scrollBar.max)
 
-                if (isBounceEnabled && (newValue < scrollBar.min || newValue > scrollBar.max)) {
+                if (isBounceEnabledX && (newValue < scrollBar.min || newValue > scrollBar.max)) {
                     bounceX += deltaX * bounceFriction
                     applyBounceTranslation()
                 }
+                scrollBar.value = newValue.coerceIn(scrollBar.min, scrollBar.max)
             }
         }
     }
@@ -345,7 +364,7 @@ class TouchBehavior(private val node: Node) {
         }
         
         // Pull-to-Refresh の判定 (上端で一定以上引っ張られているか)
-        if (isBounceEnabled && !isRefreshing && bounceY > refreshThreshold) {
+        if (isBounceEnabledY && !isRefreshing && bounceY > refreshThreshold) {
             onRefresh?.let { callback ->
                 isRefreshing = true
                 // 位置をリフレッシュしきい値付近で固定（少し戻す）

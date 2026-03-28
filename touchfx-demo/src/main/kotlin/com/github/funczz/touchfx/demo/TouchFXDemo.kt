@@ -65,7 +65,7 @@ class TouchFXDemo : Application() {
             }
             items.addAll(demoItems)
 
-            isBounceEnabled = true
+            isBounceEnabledY = true
             isSnapEnabled = true
             snapUnitY = 60.0
             isRippleEnabled = true
@@ -168,8 +168,10 @@ class TouchFXDemo : Application() {
             onFrictionChange = { inertialListView.friction = it },
             onDirectionLockChange = { inertialListView.isDirectionLockEnabled = it },
             onDynamicVisibilityChange = { inertialListView.isDynamicScrollBarVisible = it },
-            initialBounceEnabled = inertialListView.isBounceEnabled,
-            onBounceChange = { inertialListView.isBounceEnabled = it },
+            initialBounceEnabledX = inertialListView.isBounceEnabledX,
+            onBounceChangeX = { inertialListView.isBounceEnabledX = it },
+            initialBounceEnabledY = inertialListView.isBounceEnabledY,
+            onBounceChangeY = { inertialListView.isBounceEnabledY = it },
             initialSnapEnabled = inertialListView.isSnapEnabled,
             onSnapEnabledChange = { inertialListView.isSnapEnabled = it },
             initialSnapUnitX = inertialListView.snapUnitX,
@@ -205,7 +207,7 @@ class TouchFXDemo : Application() {
 
         val inertialScrollPane = InertialScrollPane().apply {
             this.content = content
-            isBounceEnabled = true
+            isBounceEnabledY = true
             isRippleEnabled = true
             
             // Pull-to-Refresh
@@ -231,8 +233,10 @@ class TouchFXDemo : Application() {
             onFrictionChange = { inertialScrollPane.friction = it },
             onDirectionLockChange = { inertialScrollPane.isDirectionLockEnabled = it },
             onDynamicVisibilityChange = { inertialScrollPane.isDynamicScrollBarVisible = it },
-            initialBounceEnabled = inertialScrollPane.isBounceEnabled,
-            onBounceChange = { inertialScrollPane.isBounceEnabled = it },
+            initialBounceEnabledX = inertialScrollPane.isBounceEnabledX,
+            onBounceChangeX = { inertialScrollPane.isBounceEnabledX = it },
+            initialBounceEnabledY = inertialScrollPane.isBounceEnabledY,
+            onBounceChangeY = { inertialScrollPane.isBounceEnabledY = it },
             initialSnapEnabled = inertialScrollPane.isSnapEnabled,
             onSnapEnabledChange = { inertialScrollPane.isSnapEnabled = it },
             initialSnapUnitX = inertialScrollPane.snapUnitX,
@@ -349,8 +353,10 @@ class TouchFXDemo : Application() {
         onFrictionChange: (Double) -> Unit,
         onDirectionLockChange: (Boolean) -> Unit,
         onDynamicVisibilityChange: (Boolean) -> Unit,
-        initialBounceEnabled: Boolean,
-        onBounceChange: (Boolean) -> Unit,
+        initialBounceEnabledX: Boolean,
+        onBounceChangeX: (Boolean) -> Unit,
+        initialBounceEnabledY: Boolean,
+        onBounceChangeY: (Boolean) -> Unit,
         initialSnapEnabled: Boolean,
         onSnapEnabledChange: (Boolean) -> Unit,
         initialSnapUnitX: Double,
@@ -389,9 +395,13 @@ class TouchFXDemo : Application() {
                 isSelected = false
                 selectedProperty().addListener { _, _, newValue -> onDynamicVisibilityChange(newValue) }
             },
-            CheckBox("Bounce Effect").apply {
-                isSelected = initialBounceEnabled
-                selectedProperty().addListener { _, _, newValue -> onBounceChange(newValue) }
+            CheckBox("Bounce Effect X").apply {
+                isSelected = initialBounceEnabledX
+                selectedProperty().addListener { _, _, newValue -> onBounceChangeX(newValue) }
+            },
+            CheckBox("Bounce Effect Y").apply {
+                isSelected = initialBounceEnabledY
+                selectedProperty().addListener { _, _, newValue -> onBounceChangeY(newValue) }
             },
             CheckBox("Snapping").apply {
                 isSelected = initialSnapEnabled

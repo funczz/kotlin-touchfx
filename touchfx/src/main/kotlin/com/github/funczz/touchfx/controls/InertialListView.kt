@@ -353,6 +353,24 @@ class InertialListView<T>(
         }
 
     /**
+     * 水平方向の境界での跳ね返り (Bounce) を有効にするかどうか。
+     */
+    var isBounceEnabledX: Boolean
+        get() = behavior.isBounceEnabledX
+        set(value) {
+            behavior.isBounceEnabledX = value
+        }
+
+    /**
+     * 垂直方向の境界での跳ね返り (Bounce) を有効にするかどうか。
+     */
+    var isBounceEnabledY: Boolean
+        get() = behavior.isBounceEnabledY
+        set(value) {
+            behavior.isBounceEnabledY = value
+        }
+
+    /**
      * スナップ（吸着）機能を有効にするかどうか。
      */
     var isSnapEnabled: Boolean
