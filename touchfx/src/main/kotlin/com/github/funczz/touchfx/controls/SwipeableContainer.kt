@@ -54,9 +54,9 @@ class SwipeableContainer(
     /**
      * 現在のスワイプ量。
      */
-    var swipeOffset: Double = 0.0
+    var swipeOffset: Double
+        get() = contentNode.translateX
         private set(value) {
-            field = value
             contentNode.translateX = value
             updateBackgroundVisibility()
         }
@@ -65,6 +65,7 @@ class SwipeableContainer(
     private var startY: Double = 0.0
     private var isSwiping: Boolean = false
     private var isLockedToOtherGesture: Boolean = false
+    private var activeTransition: TranslateTransition? = null
 
     init {
         children.add(contentNode)
@@ -84,24 +85,33 @@ class SwipeableContainer(
      * コンテンツを元の位置に戻します。
      */
     fun reset(animate: Boolean = true) {
+        stopActiveTransition()
         if (animate) {
             val transition = TranslateTransition(Duration.millis(200.0), contentNode)
             transition.toX = 0.0
             transition.setOnFinished { 
-                swipeOffset = 0.0
                 isSwiping = false
                 isLockedToOtherGesture = false
+                updateBackgroundVisibility()
+                activeTransition = null
             }
+            activeTransition = transition
             transition.play()
         } else {
-            swipeOffset = 0.0
+            contentNode.translateX = 0.0
             isSwiping = false
             isLockedToOtherGesture = false
-            contentNode.translateX = 0.0
+            updateBackgroundVisibility()
         }
     }
 
+    private fun stopActiveTransition() {
+        activeTransition?.stop()
+        activeTransition = null
+    }
+
     private fun handleMousePressed(event: MouseEvent) {
+        stopActiveTransition()
         startX = event.sceneX
         startY = event.sceneY
         
@@ -131,9 +141,7 @@ class SwipeableContainer(
         if (isSwiping) {
             var newOffset = deltaX
             
-            // スワイプ方向の制限: 
-            // - 右スワイプ (newOffset > 0) は leftBackgroundNode がある場合のみ許可
-            // - 左スワイプ (newOffset < 0) は rightBackgroundNode がある場合のみ許可
+            // スワイプ方向の制限
             if (newOffset > 0 && leftBackgroundNode == null) {
                 newOffset = 0.0
             } else if (newOffset < 0 && rightBackgroundNode == null) {
@@ -165,22 +173,26 @@ class SwipeableContainer(
     }
 
     private fun animateTo(targetX: Double) {
+        stopActiveTransition()
         val transition = TranslateTransition(Duration.millis(200.0), contentNode)
         transition.toX = targetX
         transition.setOnFinished { 
-            swipeOffset = targetX 
             isSwiping = false
+            updateBackgroundVisibility()
+            activeTransition = null
         }
+        activeTransition = transition
         transition.play()
     }
 
     private fun updateBackgroundVisibility() {
+        val currentOffset = swipeOffset
         leftBackgroundNode?.let {
-            it.isVisible = swipeOffset > 0
+            it.isVisible = currentOffset > 0
             if (it.isVisible) it.toFront()
         }
         rightBackgroundNode?.let {
-            it.isVisible = swipeOffset < 0
+            it.isVisible = currentOffset < 0
             if (it.isVisible) it.toFront()
         }
         contentNode.toFront()

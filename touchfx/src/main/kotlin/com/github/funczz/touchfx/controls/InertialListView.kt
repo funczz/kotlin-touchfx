@@ -3,16 +3,20 @@ package com.github.funczz.touchfx.controls
 import com.github.funczz.touchfx.TouchFX
 import com.github.funczz.touchfx.behavior.TouchBehavior
 import com.github.funczz.touchfx.skin.RippleEffect
+import javafx.application.Platform
 import javafx.collections.ObservableList
+import javafx.geometry.Pos
 import javafx.scene.Node
 import javafx.scene.control.Label
 import javafx.scene.control.ListCell
 import javafx.scene.control.ListView
+import javafx.scene.control.ScrollBar
 import javafx.scene.layout.AnchorPane
+import javafx.scene.layout.StackPane
 
 /**
  * 慣性スクロール機能を持つ [ListView] のラッパーコンポーネントです。
- * リストアイテムのスワイプアクションにも対応しています。
+ * リストアイテムのスワイプアクションやスティッキーヘッダーにも対応しています。
  *
  * @param T リストアイテムの型
  * @property listView ラップされた標準の [ListView]
@@ -22,6 +26,12 @@ class InertialListView<T>(
     val listView: ListView<T> = ListView(),
     useDefaultStyle: Boolean = true
 ) {
+
+    /**
+     * コンポーネントのルートノード。
+     * ListView とスティッキーヘッダーなどのオーバーレイを保持します。
+     */
+    val root: StackPane = StackPane(listView)
 
     private val behavior = TouchBehavior(listView)
 
@@ -38,9 +48,9 @@ class InertialListView<T>(
 
     /**
      * 右側にスワイプした際に表示されるノードを生成するファクトリ。
-     * 引数: (アイテム, SwipeableContainer)
+     * null を返すとそのアイテムのスワイプ（右方向）は無効になります。
      */
-    var swipeLeftFactory: ((T, SwipeableContainer) -> Node)? = null
+    var swipeLeftFactory: ((T, SwipeableContainer) -> Node?)? = null
         set(value) {
             field = value
             updateCellFactory()
@@ -48,9 +58,9 @@ class InertialListView<T>(
 
     /**
      * 左側にスワイプした際に表示されるノードを生成するファクトリ。
-     * 引数: (アイテム, SwipeableContainer)
+     * null を返すとそのアイテムのスワイプ（左方向）は無効になります。
      */
-    var swipeRightFactory: ((T, SwipeableContainer) -> Node)? = null
+    var swipeRightFactory: ((T, SwipeableContainer) -> Node?)? = null
         set(value) {
             field = value
             updateCellFactory()
@@ -67,14 +77,42 @@ class InertialListView<T>(
 
     /**
      * セルのメインコンテンツを生成するファクトリ。
-     * デフォルトでは Label によるテキスト表示が行われます。
-     * スワイプ機能や Ripple 効果はこのカスタムノードを包む形で適用されます。
      */
     var cellContentFactory: ((T) -> Node)? = null
         set(value) {
             field = value
             updateCellFactory()
         }
+
+    /**
+     * アイテムがヘッダーであるかどうかを判定する述語。
+     */
+    var isHeader: (T) -> Boolean = { false }
+        set(value) {
+            field = value
+            updateStickyHeader()
+        }
+
+    /**
+     * スティッキーヘッダー機能を有効にするかどうか。
+     */
+    var stickyHeaderEnabled: Boolean = false
+        set(value) {
+            field = value
+            if (value) {
+                if (!root.children.contains(floatingHeaderContainer)) {
+                    root.children.add(floatingHeaderContainer)
+                }
+                updateStickyHeader()
+            } else {
+                root.children.remove(floatingHeaderContainer)
+            }
+        }
+
+    private val floatingHeaderContainer = AnchorPane().apply {
+        isMouseTransparent = true
+        StackPane.setAlignment(this, Pos.TOP_LEFT)
+    }
 
     init {
         if (useDefaultStyle) {
@@ -84,13 +122,18 @@ class InertialListView<T>(
             listView.styleClass.add("touch-fx")
         }
         updateCellFactory()
+
+        Platform.runLater {
+            findVerticalScrollBar()?.valueProperty()?.addListener { _, _, _ ->
+                if (stickyHeaderEnabled) updateStickyHeader()
+            }
+        }
     }
 
     private fun updateCellFactory() {
         listView.setCellFactory { _ ->
             object : ListCell<T>() {
                 private var swipeContainer: SwipeableContainer? = null
-                private var currentContent: Node? = null
 
                 override fun updateItem(item: T, empty: Boolean) {
                     super.updateItem(item, empty)
@@ -98,32 +141,39 @@ class InertialListView<T>(
                         text = null
                         graphic = null
                         swipeContainer = null
-                        currentContent = null
                     } else {
-                        // コンテンツの取得
                         val content = cellContentFactory?.invoke(item) ?: Label(item.toString()).apply {
                             maxWidth = Double.MAX_VALUE
                             styleClass.add("label")
                         }
-                        currentContent = content
 
                         // スワイプ機能が有効な場合、SwipeableContainer でラップする
                         if (swipeLeftFactory != null || swipeRightFactory != null) {
                             val wrapper = AnchorPane(content).apply {
-                                style = "-fx-background-color: white;" // セルの背景を不透明に
+                                style = "-fx-background-color: white;"
                                 AnchorPane.setTopAnchor(content, 0.0)
                                 AnchorPane.setBottomAnchor(content, 0.0)
                                 AnchorPane.setLeftAnchor(content, 10.0)
                                 AnchorPane.setRightAnchor(content, 10.0)
                             }
-
-                            swipeContainer = SwipeableContainer(wrapper).apply {
+                            
+                            val sContainer = SwipeableContainer(wrapper).apply {
                                 threshold = swipeThreshold
-                                leftBackgroundNode = swipeLeftFactory?.invoke(item, this)
-                                rightBackgroundNode = swipeRightFactory?.invoke(item, this)
                             }
-                            graphic = swipeContainer
-                            text = null
+                            // ここで本物の sContainer をファクトリに渡す
+                            val leftNode = swipeLeftFactory?.invoke(item, sContainer)
+                            val rightNode = swipeRightFactory?.invoke(item, sContainer)
+                            
+                            if (leftNode != null || rightNode != null) {
+                                sContainer.leftBackgroundNode = leftNode
+                                sContainer.rightBackgroundNode = rightNode
+                                swipeContainer = sContainer
+                                graphic = sContainer
+                                text = null
+                            } else {
+                                graphic = content
+                                text = null
+                            }
                         } else {
                             graphic = content
                             text = null
@@ -136,6 +186,71 @@ class InertialListView<T>(
                 }
             }
         }
+    }
+
+    private fun updateStickyHeader() {
+        val visibleCells = listView.lookupAll(".list-cell")
+            .filterIsInstance<ListCell<T>>()
+            .filter { it.item != null && it.isVisible }
+            .sortedBy { it.layoutY }
+
+        if (visibleCells.isEmpty()) {
+            floatingHeaderContainer.children.clear()
+            return
+        }
+
+        val firstCell = visibleCells.first()
+        val firstIndex = firstCell.index
+        
+        var currentHeaderItem: T? = null
+        for (i in firstIndex downTo 0) {
+            val item = listView.items.getOrNull(i)
+            if (item != null && isHeader(item)) {
+                currentHeaderItem = item
+                break
+            }
+        }
+
+        if (currentHeaderItem == null) {
+            floatingHeaderContainer.children.clear()
+            return
+        }
+
+        val headerNode = cellContentFactory?.invoke(currentHeaderItem) 
+            ?: Label(currentHeaderItem.toString()).apply { styleClass.add("label") }
+        
+        val headerWrapper = AnchorPane(headerNode).apply {
+            style = "-fx-background-color: white; -fx-border-color: #eeeeee; -fx-border-width: 0 0 1 0;"
+            AnchorPane.setTopAnchor(headerNode, 0.0)
+            AnchorPane.setBottomAnchor(headerNode, 0.0)
+            AnchorPane.setLeftAnchor(headerNode, 10.0)
+            AnchorPane.setRightAnchor(headerNode, 10.0)
+            prefWidthProperty().bind(listView.widthProperty())
+        }
+
+        floatingHeaderContainer.children.setAll(headerWrapper)
+
+        val nextHeaderCell = visibleCells.drop(1).find { isHeader(it.item) }
+        if (nextHeaderCell != null) {
+            val nextHeaderTop = nextHeaderCell.localToScene(0.0, 0.0).y
+            val containerTop = listView.localToScene(0.0, 0.0).y
+            val distance = nextHeaderTop - containerTop
+            
+            val headerHeight = headerWrapper.boundsInLocal.height
+            if (distance < headerHeight) {
+                headerWrapper.translateY = distance - headerHeight
+            } else {
+                headerWrapper.translateY = 0.0
+            }
+        } else {
+            headerWrapper.translateY = 0.0
+        }
+    }
+
+    private fun findVerticalScrollBar(): ScrollBar? {
+        return listView.lookupAll(".scroll-bar")
+            .filterIsInstance<ScrollBar>()
+            .find { it.orientation == javafx.geometry.Orientation.VERTICAL }
     }
 
     /**

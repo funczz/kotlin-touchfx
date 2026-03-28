@@ -55,33 +55,50 @@ class TouchFXDemo : Application() {
 
     private fun createListViewDemo(): Node {
         val inertialListView = InertialListView<String>().apply {
-            items.addAll((1..500).map { "List Item #$it" })
+            // アイテムの生成（定期的にヘッダーを挿入）
+            val demoItems = mutableListOf<String>()
+            for (i in 1..20) {
+                demoItems.add("HEADER: Category $i")
+                for (j in 1..10) {
+                    demoItems.add("List Item #$i-$j")
+                }
+            }
+            items.addAll(demoItems)
+
             isBounceEnabled = true
             isSnapEnabled = true
-            snapUnitY = 60.0 // カスタムセルの高さに合わせる
+            snapUnitY = 60.0
             isRippleEnabled = true
             
+            // スティッキーヘッダー設定
+            isHeader = { it.startsWith("HEADER:") }
+            stickyHeaderEnabled = true
+
             // セルの見た目をカスタマイズ
             cellContentFactory = { item ->
+                val isHeaderItem = isHeader(item)
                 HBox(15.0).apply {
                     alignment = Pos.CENTER_LEFT
                     padding = Insets(10.0, 15.0, 10.0, 15.0)
                     prefHeight = 60.0
-                    style = "-fx-background-color: white; -fx-border-color: #eeeeee; -fx-border-width: 0 0 1 0;"
                     
-                    // アイコンプレースホルダ
-                    val icon = Circle(18.0, Color.web("#673AB7", 0.8))
-                    
-                    // テキストコンテナ
-                    val textContainer = VBox(2.0).apply {
-                        alignment = Pos.CENTER_LEFT
-                        children.addAll(
-                            Label(item).apply { style = "-fx-font-weight: bold; -fx-font-size: 1.1em;" },
-                            Label("Tap or swipe this item to see effects").apply { style = "-fx-text-fill: gray; -fx-font-size: 0.9em;" }
-                        )
+                    if (isHeaderItem) {
+                        style = "-fx-background-color: #f0f0f0; -fx-border-color: #cccccc; -fx-border-width: 0 0 1 0;"
+                        val icon = Rectangle(10.0, 30.0, Color.web("#FF9800"))
+                        val label = Label(item).apply { style = "-fx-font-weight: bold; -fx-font-size: 1.2em;" }
+                        children.addAll(icon, label)
+                    } else {
+                        style = "-fx-background-color: white; -fx-border-color: #eeeeee; -fx-border-width: 0 0 1 0;"
+                        val icon = Circle(18.0, Color.web("#673AB7", 0.8))
+                        val textContainer = VBox(2.0).apply {
+                            alignment = Pos.CENTER_LEFT
+                            children.addAll(
+                                Label(item).apply { style = "-fx-font-weight: bold; -fx-font-size: 1.1em;" },
+                                Label("Tap or swipe this item to see effects").apply { style = "-fx-text-fill: gray; -fx-font-size: 0.9em;" }
+                            )
+                        }
+                        children.addAll(icon, textContainer)
                     }
-                    
-                    children.addAll(icon, textContainer)
                     maxWidth = Double.MAX_VALUE
                 }
             }
@@ -103,38 +120,42 @@ class TouchFXDemo : Application() {
 
             // Swipe Actions
             swipeLeftFactory = { item, container ->
-                HBox().apply {
-                    alignment = Pos.CENTER_LEFT
-                    style = "-fx-background-color: #2196F3;"
-                    prefWidth = 80.0
-                    children.add(Button("Edit").apply {
-                        style = "-fx-background-color: transparent; -fx-text-fill: white;"
-                        maxWidth = Double.MAX_VALUE
-                        maxHeight = Double.MAX_VALUE
-                        HBox.setHgrow(this, Priority.ALWAYS)
-                        setOnAction { 
-                            println("Edit clicked: $item")
-                            container.reset()
-                        }
-                    })
+                if (isHeader(item)) null else {
+                    HBox().apply {
+                        alignment = Pos.CENTER_LEFT
+                        style = "-fx-background-color: #2196F3;"
+                        prefWidth = 80.0
+                        children.add(Button("Edit").apply {
+                            style = "-fx-background-color: transparent; -fx-text-fill: white;"
+                            maxWidth = Double.MAX_VALUE
+                            maxHeight = Double.MAX_VALUE
+                            HBox.setHgrow(this, Priority.ALWAYS)
+                            setOnAction { 
+                                println("Edit clicked: $item")
+                                container.reset()
+                            }
+                        })
+                    }
                 }
             }
             swipeRightFactory = { item, container ->
-                HBox().apply {
-                    alignment = Pos.CENTER_RIGHT
-                    style = "-fx-background-color: #F44336;"
-                    prefWidth = 80.0
-                    children.add(Button("Delete").apply {
-                        style = "-fx-background-color: transparent; -fx-text-fill: white;"
-                        maxWidth = Double.MAX_VALUE
-                        maxHeight = Double.MAX_VALUE
-                        HBox.setHgrow(this, Priority.ALWAYS)
-                        setOnAction { 
-                            println("Delete clicked: $item")
-                            container.reset(animate = false)
-                            items.remove(item)
-                        }
-                    })
+                if (isHeader(item)) null else {
+                    HBox().apply {
+                        alignment = Pos.CENTER_RIGHT
+                        style = "-fx-background-color: #F44336;"
+                        prefWidth = 80.0
+                        children.add(Button("Delete").apply {
+                            style = "-fx-background-color: transparent; -fx-text-fill: white;"
+                            maxWidth = Double.MAX_VALUE
+                            maxHeight = Double.MAX_VALUE
+                            HBox.setHgrow(this, Priority.ALWAYS)
+                            setOnAction { 
+                                println("Delete clicked: $item")
+                                container.reset(animate = false)
+                                items.remove(item)
+                            }
+                        })
+                    }
                 }
             }
         }
@@ -158,11 +179,13 @@ class TouchFXDemo : Application() {
             initialRefreshThreshold = inertialListView.refreshThreshold,
             onRefreshThresholdChange = { inertialListView.refreshThreshold = it },
             initialRippleEnabled = inertialListView.isRippleEnabled,
-            onRippleEnabledChange = { inertialListView.isRippleEnabled = it }
+            onRippleEnabledChange = { inertialListView.isRippleEnabled = it },
+            initialStickyHeaderEnabled = inertialListView.stickyHeaderEnabled,
+            onStickyHeaderChange = { inertialListView.stickyHeaderEnabled = it }
         )
 
         return BorderPane().apply {
-            center = StackPane(inertialListView.refreshIndicator, inertialListView.listView).apply {
+            center = StackPane(inertialListView.refreshIndicator, inertialListView.root).apply {
                 alignment = Pos.TOP_CENTER
             }
             right = controlPanel
@@ -337,7 +360,9 @@ class TouchFXDemo : Application() {
         initialRefreshThreshold: Double,
         onRefreshThresholdChange: (Double) -> Unit,
         initialRippleEnabled: Boolean,
-        onRippleEnabledChange: (Boolean) -> Unit
+        onRippleEnabledChange: (Boolean) -> Unit,
+        initialStickyHeaderEnabled: Boolean = false,
+        onStickyHeaderChange: ((Boolean) -> Unit)? = null
     ): Node {
         val panel = VBox(10.0).apply {
             padding = Insets(15.0)
@@ -375,6 +400,12 @@ class TouchFXDemo : Application() {
             CheckBox("Ripple Effect").apply {
                 isSelected = initialRippleEnabled
                 selectedProperty().addListener { _, _, newValue -> onRippleEnabledChange(newValue) }
+            },
+            CheckBox("Sticky Header").apply {
+                isSelected = initialStickyHeaderEnabled
+                selectedProperty().addListener { _, _, newValue -> onStickyHeaderChange?.invoke(newValue) }
+                disableProperty().bind(javafx.beans.binding.Bindings.createBooleanBinding({ onStickyHeaderChange == null }, 
+                    javafx.beans.property.SimpleObjectProperty(onStickyHeaderChange)))
             },
             
             Separator(),
