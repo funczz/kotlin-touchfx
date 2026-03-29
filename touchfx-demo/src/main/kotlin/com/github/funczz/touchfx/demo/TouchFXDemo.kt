@@ -23,7 +23,7 @@ import java.util.concurrent.CompletableFuture
 class TouchFXDemo : Application() {
 
     override fun start(primaryStage: Stage) {
-        val tabPane = TabPane()
+        val tabPane = TouchTabPane()
 
         // Tab 1: InertialListView
         val listViewTab = Tab("InertialListView").apply {
@@ -363,11 +363,28 @@ class TouchFXDemo : Application() {
 
             val checkBoxSection = VBox(10.0).apply {
                 children.addAll(
-                    Label("TouchCheckBox (Large Hit Area)").apply { style = "-fx-font-weight: bold;" },
-                    VBox(15.0).apply {
+                    Label("Check & Switch (Selection)").apply { style = "-fx-font-weight: bold;" },
+                    HBox(30.0).apply {
+                        alignment = Pos.CENTER_LEFT
                         children.addAll(
-                            TouchCheckBox("Enable Notifications"),
-                            TouchCheckBox("Stay Logged In").apply { isSelected = true }
+                            TouchCheckBox("Normal Check"),
+                            ToggleSwitch("Toggle Switch").apply { isSelected = true }
+                        )
+                    }
+                )
+            }
+
+            val inputSection = VBox(10.0).apply {
+                children.addAll(
+                    Label("TouchTextField, TouchSpinner & DatePicker (Input)").apply { style = "-fx-font-weight: bold;" },
+                    TouchTextField(null).apply { promptText = "Tap to enter text..." },
+                    HBox(20.0).apply {
+                        alignment = Pos.CENTER_LEFT
+                        children.addAll(
+                            Label("Adjust Value:"),
+                            TouchSpinner(0.0, 100.0, 25.0, 5.0),
+                            Label("Pick Date:"),
+                            TouchDatePicker()
                         )
                     }
                 )
@@ -425,7 +442,7 @@ class TouchFXDemo : Application() {
                 )
             }
 
-            children.addAll(buttonSection, checkBoxSection, radioButtonSection, comboBoxSection, sliderSection, Separator(), standardComparisonSection)
+            children.addAll(buttonSection, checkBoxSection, inputSection, radioButtonSection, comboBoxSection, sliderSection, Separator(), standardComparisonSection)
         }
 
         return ScrollPane(vbox).apply {
