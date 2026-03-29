@@ -43,7 +43,7 @@ root.children.add(inertialScrollPane.scrollPane)
 
 ### 2.3 TouchFriendlyControls
 
-タッチ操作に最適化された、大きなクリックエリアを持つコントロール群です。
+タッチ操作に最適化された、大きなクリックエリアを持つコントロール群です。全てのコントロールで `useDefaultStyle: Boolean` 引数によりデフォルトスタイルの適用を制御できます。
 
 #### TouchButton
 自動的に Ripple Effect（波紋効果）が適用され、タップしやすいサイズ（最小高さ 66px）のボタンです。
@@ -58,6 +58,21 @@ button.setOnAction { println("Tapped!") }
 
 ```kotlin
 val checkBox = TouchCheckBox("Enable Feature")
+```
+
+#### TouchRadioButton
+`TouchCheckBox` と同様に広いヒット判定を持つラジオボタンです。
+
+```kotlin
+val radio = TouchRadioButton("Option 1")
+```
+
+#### TouchComboBox
+タップしやすいサイズ（最小高さ 66px）のコンボボックスです。ドロップダウンリスト内のアイテムもタッチに適した高さに自動調整されます。
+
+```kotlin
+val comboBox = TouchComboBox<String>()
+comboBox.items.addAll("Option A", "Option 2")
 ```
 
 #### TouchSlider
@@ -210,7 +225,7 @@ val behavior = myNode.addGestureBehavior {
 スクロールの挙動は、以下のプロパティを通じて動的に調整可能です。
 
 - `sensitivity`: スクロールの感度。値が大きいほど、ドラッグ量に対して大きくスクロールします。
-- `inertia`: 慣性の強さ。値が大きいほど、指を離した後のスクロール距離が長くなります。
+- `inertia`: 慣性の強さ。値が大きいほど, 指を離した後のスクロール距離が長くなります。
 - `friction`: 摩擦係数（減速率）。`0.0` から `1.0` の間で指定し、小さいほど早く停止します（デフォルト: `0.92`）。
 
 ## 7. スタイリング
