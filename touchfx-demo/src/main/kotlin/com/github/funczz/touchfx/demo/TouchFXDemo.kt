@@ -2,9 +2,7 @@ package com.github.funczz.touchfx.demo
 
 import com.github.funczz.touchfx.behavior.GestureBehavior
 import com.github.funczz.touchfx.behavior.addGestureBehavior
-import com.github.funczz.touchfx.controls.InertialListView
-import com.github.funczz.touchfx.controls.InertialScrollPane
-import com.github.funczz.touchfx.controls.SwipeableContainer
+import com.github.funczz.touchfx.controls.*
 import javafx.application.Application
 import javafx.application.Platform
 import javafx.geometry.Insets
@@ -45,7 +43,13 @@ class TouchFXDemo : Application() {
             content = createGesturesDemo()
         }
 
-        tabPane.tabs.addAll(listViewTab, scrollPaneTab, gesturesTab)
+        // Tab 4: TouchFriendlyControls
+        val controlsTab = Tab("Controls").apply {
+            isClosable = false
+            content = createControlsDemo()
+        }
+
+        tabPane.tabs.addAll(listViewTab, scrollPaneTab, gesturesTab, controlsTab)
 
         val root = BorderPane(tabPane)
         primaryStage.title = "TouchFX Demo"
@@ -333,6 +337,75 @@ class TouchFXDemo : Application() {
         }
 
         return HBox(mainArea, controlPanel)
+    }
+
+    private fun createControlsDemo(): Node {
+        val vbox = VBox(30.0).apply {
+            padding = Insets(40.0)
+            alignment = Pos.TOP_LEFT
+            
+            val buttonSection = VBox(10.0).apply {
+                children.addAll(
+                    Label("TouchButton (Large Area & Ripple Effect)").apply { style = "-fx-font-weight: bold;" },
+                    HBox(20.0).apply {
+                        children.addAll(
+                            TouchButton("Default Button"),
+                            TouchButton("Primary Action").apply {
+                                style = "-fx-base: #2196F3; -fx-text-fill: white;"
+                            },
+                            TouchButton("Danger Zone").apply {
+                                style = "-fx-base: #F44336; -fx-text-fill: white;"
+                            }
+                        )
+                    }
+                )
+            }
+
+            val checkBoxSection = VBox(10.0).apply {
+                children.addAll(
+                    Label("TouchCheckBox (Large Hit Area)").apply { style = "-fx-font-weight: bold;" },
+                    VBox(15.0).apply {
+                        children.addAll(
+                            TouchCheckBox("Enable Notifications"),
+                            TouchCheckBox("Stay Logged In").apply { isSelected = true },
+                            TouchCheckBox("Accept Terms and Conditions")
+                        )
+                    }
+                )
+            }
+
+            val sliderSection = VBox(10.0).apply {
+                val slider = TouchSlider(0.0, 100.0, 50.0)
+                val valueLabel = Label("Current Value: 50.0")
+                slider.valueProperty().addListener { _, _, newValue ->
+                    valueLabel.text = "Current Value: ${"%.1f".format(newValue)}"
+                }
+                children.addAll(
+                    Label("TouchSlider (Large Thumb)").apply { style = "-fx-font-weight: bold;" },
+                    slider,
+                    valueLabel
+                )
+            }
+
+            val standardComparisonSection = VBox(10.0).apply {
+                children.addAll(
+                    Label("Standard Controls (for comparison)").apply { style = "-fx-font-weight: bold; -fx-text-fill: gray;" },
+                    HBox(20.0).apply {
+                        children.addAll(
+                            Button("Standard Button"),
+                            CheckBox("Standard CheckBox"),
+                            Slider(0.0, 100.0, 50.0)
+                        )
+                    }
+                )
+            }
+
+            children.addAll(buttonSection, checkBoxSection, sliderSection, Separator(), standardComparisonSection)
+        }
+
+        return ScrollPane(vbox).apply {
+            isFitToWidth = true
+        }
     }
 
     private fun createIndicator(): Node {
