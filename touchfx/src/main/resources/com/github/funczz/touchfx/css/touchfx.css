@@ -87,6 +87,31 @@
 }
 
 /**
+ * TouchRadioButton
+ */
+.touch-radio-button {
+    -fx-min-height: 66px;
+    -fx-padding: 10px;
+    -fx-cursor: hand;
+    -fx-font-size: 1.1em;
+}
+
+.touch-radio-button .radio {
+    -fx-min-width: 42px;
+    -fx-min-height: 42px;
+    -fx-background-radius: 21px;
+}
+
+.touch-radio-button .dot {
+    -fx-background-radius: 10px;
+    -fx-padding: 10px;
+}
+
+.touch-radio-button:pressed .radio {
+    -fx-background-color: derive(-fx-base, -10%);
+}
+
+/**
  * TouchSlider
  */
 .touch-slider {
@@ -102,4 +127,32 @@
 .touch-slider .track {
     -fx-pref-height: 12px;
     -fx-background-radius: 6px;
+}
+
+/**
+ * TouchComboBox
+ */
+.touch-combo-box {
+    -fx-min-height: 66px;
+    -fx-padding: 5px 15px;
+    -fx-background-radius: 8px;
+    -fx-font-size: 1.1em;
+    -fx-cursor: hand;
+}
+
+.touch-combo-box .arrow-button {
+    -fx-padding: 0 15px;
+}
+
+.touch-combo-box .arrow {
+    -fx-padding: 4px 6px;
+}
+
+/**
+ * TouchComboBox Cell (List items & Button cell)
+ */
+.touch-combo-box-cell {
+    -fx-min-height: 66px;
+    -fx-padding: 10px 20px;
+    -fx-font-size: 1.1em;
 }

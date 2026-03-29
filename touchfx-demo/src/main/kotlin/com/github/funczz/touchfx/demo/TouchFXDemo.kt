@@ -367,10 +367,35 @@ class TouchFXDemo : Application() {
                     VBox(15.0).apply {
                         children.addAll(
                             TouchCheckBox("Enable Notifications"),
-                            TouchCheckBox("Stay Logged In").apply { isSelected = true },
-                            TouchCheckBox("Accept Terms and Conditions")
+                            TouchCheckBox("Stay Logged In").apply { isSelected = true }
                         )
                     }
+                )
+            }
+
+            val radioButtonSection = VBox(10.0).apply {
+                val group = ToggleGroup()
+                children.addAll(
+                    Label("TouchRadioButton (Large Hit Area)").apply { style = "-fx-font-weight: bold;" },
+                    VBox(15.0).apply {
+                        children.addAll(
+                            TouchRadioButton("Option A").apply { toggleGroup = group; isSelected = true },
+                            TouchRadioButton("Option B").apply { toggleGroup = group },
+                            TouchRadioButton("Option C").apply { toggleGroup = group }
+                        )
+                    }
+                )
+            }
+
+            val comboBoxSection = VBox(10.0).apply {
+                val comboBox = TouchComboBox<String>().apply {
+                    items.addAll("Item 1 (Very long text for testing layout)", "Item 2", "Item 3", "Item 4", "Item 5")
+                    value = "Item 1 (Very long text for testing layout)"
+                    maxWidth = 300.0
+                }
+                children.addAll(
+                    Label("TouchComboBox (Large Items)").apply { style = "-fx-font-weight: bold;" },
+                    comboBox
                 )
             }
 
@@ -400,7 +425,7 @@ class TouchFXDemo : Application() {
                 )
             }
 
-            children.addAll(buttonSection, checkBoxSection, sliderSection, Separator(), standardComparisonSection)
+            children.addAll(buttonSection, checkBoxSection, radioButtonSection, comboBoxSection, sliderSection, Separator(), standardComparisonSection)
         }
 
         return ScrollPane(vbox).apply {
