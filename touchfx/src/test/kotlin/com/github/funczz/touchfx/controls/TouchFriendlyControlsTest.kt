@@ -41,6 +41,16 @@ class TouchFriendlyControlsTest {
     @Test
     fun testTouchButtonStyle(@Suppress("UNUSED_PARAMETER") robot: FxRobot) {
         assertTrue(touchButton.styleClass.contains("touch-button"), "TouchButton should have 'touch-button' style class")
+        assertTrue(touchButton.stylesheets.isNotEmpty(), "Default stylesheet should be applied")
+    }
+
+    /**
+     * useDefaultStyle = false の時にスタイルシートが適用されないことを確認します。
+     */
+    @Test
+    fun testNoDefaultStyle(@Suppress("UNUSED_PARAMETER") robot: FxRobot) {
+        val noStyleButton = TouchButton("No Style", useDefaultStyle = false)
+        assertTrue(noStyleButton.stylesheets.isEmpty(), "Stylesheet should NOT be applied when useDefaultStyle is false")
     }
 
     /**

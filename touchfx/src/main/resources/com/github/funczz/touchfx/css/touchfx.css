@@ -50,10 +50,10 @@
  */
 .touch-button {
     -fx-min-width: 44px;
-    -fx-min-height: 44px;
-    -fx-padding: 10px 20px;
-    -fx-background-radius: 8px;
-    -fx-font-size: 1.1em;
+    -fx-min-height: 66px; /* 44px * 1.5 */
+    -fx-padding: 15px 30px;
+    -fx-background-radius: 12px;
+    -fx-font-size: 1.2em;
     -fx-cursor: hand;
 }
 
@@ -70,15 +70,16 @@
  * TouchCheckBox
  */
 .touch-check-box {
-    -fx-min-height: 44px;
-    -fx-padding: 5px;
+    -fx-min-height: 66px; /* 44px * 1.5 */
+    -fx-padding: 10px;
     -fx-cursor: hand;
+    -fx-font-size: 1.1em;
 }
 
 .touch-check-box .box {
-    -fx-min-width: 28px;
-    -fx-min-height: 28px;
-    -fx-background-radius: 4px;
+    -fx-min-width: 42px; /* 28px * 1.5 */
+    -fx-min-height: 42px; /* 28px * 1.5 */
+    -fx-background-radius: 6px;
 }
 
 .touch-check-box:pressed .box {
@@ -89,16 +90,16 @@
  * TouchSlider
  */
 .touch-slider {
-    -fx-min-height: 44px;
+    -fx-min-height: 66px; /* 44px * 1.5 */
 }
 
 .touch-slider .thumb {
-    -fx-min-width: 32px;
-    -fx-min-height: 32px;
-    -fx-background-radius: 16px;
+    -fx-min-width: 48px; /* 32px * 1.5 */
+    -fx-min-height: 48px; /* 32px * 1.5 */
+    -fx-background-radius: 24px;
 }
 
 .touch-slider .track {
-    -fx-pref-height: 8px;
-    -fx-background-radius: 4px;
+    -fx-pref-height: 12px;
+    -fx-background-radius: 6px;
 }
