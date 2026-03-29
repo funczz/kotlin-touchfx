@@ -1,6 +1,6 @@
 # TouchFX 使用方法
 
-TouchFX は、JavaFX アプリケーションにモダンな慣性スクロール機能を提供するための Kotlin ライブラリです。
+TouchFX は、JavaFX アプリケーションにモダンなタッチ操作機能を提供するための Kotlin ライブラリです。
 
 ## 1. ライブラリの導入
 
@@ -16,7 +16,7 @@ dependencies {
 
 ## 2. 基本的な使い方
 
-### InertialListView
+### 2.1 InertialListView
 
 標準の `ListView` をラップし、慣性スクロール機能を付与します。
 スティッキーヘッダー等のオーバーレイ機能を使用するため、シーングラフには `listView` ではなく `root` を追加してください。
@@ -29,7 +29,7 @@ inertialListView.items.addAll("Item 1", "Item 2", "Item 3")
 root.children.add(inertialListView.root)
 ```
 
-### InertialScrollPane
+### 2.2 InertialScrollPane
 
 標準の `ScrollPane` をラップし、慣性スクロール機能を付与します。
 
@@ -39,6 +39,32 @@ inertialScrollPane.content = myLargeContentNode
 
 // 内部の ScrollPane インスタンスをシーングラフに追加
 root.children.add(inertialScrollPane.scrollPane)
+```
+
+### 2.3 TouchFriendlyControls
+
+タッチ操作に最適化された、大きなクリックエリアを持つコントロール群です。
+
+#### TouchButton
+自動的に Ripple Effect（波紋効果）が適用され、タップしやすいサイズ（最小高さ 66px）のボタンです。
+
+```kotlin
+val button = TouchButton("Tap Me")
+button.setOnAction { println("Tapped!") }
+```
+
+#### TouchCheckBox
+ラベル部分を含めてヒット判定が広く、大型のチェックボックスです。
+
+```kotlin
+val checkBox = TouchCheckBox("Enable Feature")
+```
+
+#### TouchSlider
+指で掴みやすい大型のつまみ（Thumb）と太いトラックを持つスライダーです。
+
+```kotlin
+val slider = TouchSlider(0.0, 100.0, 50.0)
 ```
 
 ## 3. 高度な機能
@@ -189,11 +215,13 @@ val behavior = myNode.addGestureBehavior {
 
 ## 7. スタイリング
 
-デフォルトでタッチ操作に最適化された CSS（細いスクロールバーなど）が適用されます。
-これを無効化するには、コンストラクタで `useDefaultStyle = false` を指定してください。
+デフォルトでタッチ操作に最適化された CSS が適用されます。
+これを無効化し、独自のスタイルのみを適用するには、コンストラクタで `useDefaultStyle = false` を指定してください。
 
 ```kotlin
-val listView = InertialListView<String>(useDefaultStyle = false)
+// デフォルトスタイルを無効化して独自の CSS を適用する
+val button = TouchButton("Custom", useDefaultStyle = false)
+button.stylesheets.add(getClass().getResource("my-style.css").toExternalForm())
 ```
 
 ## 8. デモアプリケーションの実行
