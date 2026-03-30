@@ -49,7 +49,13 @@ class TouchFXDemo : Application() {
             content = createControlsDemo()
         }
 
-        tabPane.tabs.addAll(listViewTab, scrollPaneTab, gesturesTab, controlsTab)
+        // Tab 5: AdaptiveLayouts
+        val layoutsTab = Tab("Layouts").apply {
+            isClosable = false
+            content = createLayoutsDemo()
+        }
+
+        tabPane.tabs.addAll(listViewTab, scrollPaneTab, gesturesTab, controlsTab, layoutsTab)
 
         val root = BorderPane(tabPane)
         primaryStage.title = "TouchFX Demo"
@@ -337,6 +343,106 @@ class TouchFXDemo : Application() {
         }
 
         return HBox(mainArea, controlPanel)
+    }
+
+    private fun createLayoutsDemo(): Node {
+        val vbox = VBox(40.0).apply {
+            padding = Insets(40.0)
+            alignment = Pos.TOP_LEFT
+            
+            // AdaptivePane Demo
+            val adaptivePaneSection = VBox(10.0).apply {
+                val adaptivePane = AdaptivePane(breakpoint = 500.0).apply {
+                    padding = Insets(10.0)
+                    style = "-fx-border-color: #2196F3; -fx-border-width: 2px; -fx-border-radius: 5px;"
+                    children.addAll(
+                        Rectangle(100.0, 100.0, Color.LIGHTCORAL),
+                        Rectangle(100.0, 100.0, Color.LIGHTBLUE),
+                        Rectangle(100.0, 100.0, Color.LIGHTGREEN)
+                    )
+                }
+                children.addAll(
+                    Label("AdaptivePane (Breakpoint: 500px)").apply { style = "-fx-font-weight: bold;" },
+                    Label("Try resizing the window width above/below 500px to see layout shift."),
+                    adaptivePane
+                )
+            }
+
+            // FluidGridPane Demo
+            val fluidGridSection = VBox(10.0).apply {
+                val fluidGrid = FluidGridPane(columnWidth = 150.0).apply {
+                    padding = Insets(10.0)
+                    style = "-fx-border-color: #4CAF50; -fx-border-width: 2px; -fx-border-radius: 5px;"
+                    // 12個の要素を追加
+                    children.addAll((1..12).map {
+                        StackPane().apply {
+                            prefWidth = 150.0
+                            prefHeight = 80.0
+                            style = "-fx-background-color: #e0e0e0; -fx-background-radius: 5px;"
+                            children.add(Label("Item #$it"))
+                        }
+                    })
+                }
+                children.addAll(
+                    Label("FluidGridPane (Column Width: 150px)").apply { style = "-fx-font-weight: bold;" },
+                    Label("The number of columns automatically adjusts to the available width."),
+                    fluidGrid
+                )
+            }
+
+            // ResponsiveLayout Demo
+            val responsiveLayoutSection = VBox(10.0).apply {
+                val nav = HBox(20.0).apply {
+                    alignment = Pos.CENTER
+                    padding = Insets(10.0)
+                    style = "-fx-background-color: #333333;"
+                    children.addAll(
+                        Label("Home").apply { style = "-fx-text-fill: white;" },
+                        Label("Search").apply { style = "-fx-text-fill: white;" },
+                        Label("Settings").apply { style = "-fx-text-fill: white;" }
+                    )
+                }
+                val content = StackPane(Label("Main Content Area").apply { style = "-fx-font-size: 2em;" }).apply {
+                    style = "-fx-background-color: #f9f9f9; -fx-border-color: #cccccc;"
+                }
+                val responsiveLayout = ResponsiveLayout(breakpoint = 600.0).apply {
+                    this.navigation = nav
+                    this.content = content
+                    setPrefSize(Double.MAX_VALUE, 300.0)
+                }
+                
+                val positionSelectors = HBox(20.0).apply {
+                    alignment = Pos.CENTER_LEFT
+                    val narrowCombo = ComboBox<ResponsiveLayout.Side>().apply {
+                        items.addAll(ResponsiveLayout.Side.values())
+                        value = responsiveLayout.narrowPosition
+                        valueProperty().addListener { _, _, newValue -> responsiveLayout.narrowPosition = newValue }
+                    }
+                    val wideCombo = ComboBox<ResponsiveLayout.Side>().apply {
+                        items.addAll(ResponsiveLayout.Side.values())
+                        value = responsiveLayout.widePosition
+                        valueProperty().addListener { _, _, newValue -> responsiveLayout.widePosition = newValue }
+                    }
+                    children.addAll(
+                        Label("Narrow:"), narrowCombo,
+                        Label("Wide:"), wideCombo
+                    )
+                }
+
+                children.addAll(
+                    Label("ResponsiveLayout (Breakpoint: 600px)").apply { style = "-fx-font-weight: bold;" },
+                    Label("Narrow (< 600px): Bottom Navigation. Wide (>= 600px): Navigation Rail."),
+                    positionSelectors,
+                    responsiveLayout
+                )
+            }
+
+            children.addAll(responsiveLayoutSection, adaptivePaneSection, fluidGridSection)
+        }
+
+        return ScrollPane(vbox).apply {
+            isFitToWidth = true
+        }
     }
 
     private fun createControlsDemo(): Node {
