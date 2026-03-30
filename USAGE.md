@@ -12,8 +12,6 @@ dependencies {
 }
 ```
 
-※ 現在開発中のため、ローカルビルドまたは Maven ローカルリポジトリ経由での利用を想定しています。
-
 ## 2. 基本的な使い方
 
 ### 2.1 InertialListView
@@ -43,7 +41,7 @@ root.children.add(inertialScrollPane.scrollPane)
 
 ### 2.3 TouchFriendlyControls
 
-タッチ操作に最適化された、大きなクリックエリアと視覚的フィードバックを持つコントロール群です。全てのコントロールで `useDefaultStyle: Boolean` 引数によりデフォルトスタイルの適用を制御できます。
+タッチ操作に最適化されたコントロール群です。全てのコントロールで `useDefaultStyle: Boolean` 引数によりデフォルトスタイルの適用を制御できます。詳細はデモアプリの「Controls」タブを参照してください。
 
 #### TouchButton / TouchCheckBox / TouchRadioButton
 標準より 1.5倍大きなサイズと、Ripple Effect（波紋効果）を備えています。
@@ -84,6 +82,40 @@ val spinner = TouchSpinner(min = 0.0, max = 100.0, initial = 50.0, step = 5.0)
 ```kotlin
 val tabPane = TouchTabPane()
 tabPane.tabs.add(Tab("Home"))
+```
+
+### 2.4 レスポンシブコンテナ
+
+画面幅に応じて動的にレイアウトを調整するコンテナです。
+
+#### AdaptivePane
+幅の閾値（breakpoint）に基づき、子要素を水平（HBox風）または垂直（VBox風）に自動配置します。
+
+```kotlin
+val adaptivePane = AdaptivePane(breakpoint = 500.0)
+adaptivePane.children.addAll(node1, node2, node3)
+```
+
+#### FluidGridPane
+利用可能な幅に合わせて、1行あたりの列数を自動計算してグリッド配置します。
+
+```kotlin
+val fluidGrid = FluidGridPane(columnWidth = 200.0)
+fluidGrid.children.addAll(items)
+```
+
+#### ResponsiveLayout
+ナビゲーションとコンテンツの位置関係を画面幅に応じて柔軟に変更します。Android の Bottom Navigation と Navigation Rail の切り替えなどに最適です。
+
+```kotlin
+val layout = ResponsiveLayout(breakpoint = 600.0)
+layout.navigation = myNavBar
+layout.content = myMainContent
+
+// 狭い画面での位置 (デフォルト: BOTTOM)
+layout.narrowPosition = ResponsiveLayout.Side.BOTTOM
+// 広い画面での位置 (デフォルト: LEFT)
+layout.widePosition = ResponsiveLayout.Side.LEFT
 ```
 
 ## 3. 高度な機能
