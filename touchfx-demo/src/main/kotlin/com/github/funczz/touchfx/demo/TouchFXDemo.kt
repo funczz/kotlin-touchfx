@@ -16,6 +16,7 @@ import javafx.scene.shape.Circle
 import javafx.scene.shape.Rectangle
 import javafx.stage.Stage
 import java.util.concurrent.CompletableFuture
+import java.util.concurrent.ConcurrentHashMap
 
 /**
  * TouchFX の機能を体験するためのデモアプリケーション。
@@ -31,41 +32,154 @@ class TouchFXDemo : Application() {
             content = createListViewDemo()
         }
 
-        // Tab 2: InertialScrollPane
+        // Tab 2: On-Demand Loading
+        val onDemandTab = Tab("On-Demand").apply {
+            isClosable = false
+            content = createOnDemandDemo()
+        }
+
+        // Tab 3: InertialScrollPane
         val scrollPaneTab = Tab("InertialScrollPane").apply {
             isClosable = false
             content = createScrollPaneDemo()
         }
 
-        // Tab 3: Gestures
+        // Tab 4: Gestures
         val gesturesTab = Tab("Gestures").apply {
             isClosable = false
             content = createGesturesDemo()
         }
 
-        // Tab 4: TouchFriendlyControls
+        // Tab 5: TouchFriendlyControls
         val controlsTab = Tab("Controls").apply {
             isClosable = false
             content = createControlsDemo()
         }
 
-        // Tab 5: AdaptiveLayouts
+        // Tab 6: AdaptiveLayouts
         val layoutsTab = Tab("Layouts").apply {
             isClosable = false
             content = createLayoutsDemo()
         }
 
-        tabPane.tabs.addAll(listViewTab, scrollPaneTab, gesturesTab, controlsTab, layoutsTab)
+        tabPane.tabs.addAll(listViewTab, onDemandTab, scrollPaneTab, gesturesTab, controlsTab, layoutsTab)
 
         val root = BorderPane(tabPane)
         primaryStage.title = "TouchFX Demo"
-        primaryStage.scene = Scene(root, 800.0, 600.0)
+        primaryStage.scene = Scene(root, 1000.0, 800.0)
         primaryStage.show()
+    }
+
+    private fun createOnDemandDemo(): Node {
+        val totalCount = 1_000
+        val dataCache = ConcurrentHashMap<Int, String>()
+        val loadingIndices = ConcurrentHashMap.newKeySet<Int>()
+
+        val inertialListView = InertialListView<String>().apply {
+            setVirtualItems(totalCount, "Loading...")
+            isRippleEnabled = true
+            isBounceEnabledY = true
+            isDirectionLockEnabled = true
+            
+            onVisibleRangeChanged = { first, last ->
+                val buffer = 10 
+                val start = (first - buffer).coerceAtLeast(0)
+                val end = (last + buffer).coerceAtMost(totalCount - 1)
+
+                val toLoad = (start..end).filter { index ->
+                    !dataCache.containsKey(index) && !loadingIndices.contains(index)
+                }
+
+                if (toLoad.isNotEmpty()) {
+                    CompletableFuture.runAsync {
+                        Thread.sleep(200) 
+                        toLoad.forEach { index ->
+                            dataCache[index] = "REAL DATA for Item #$index"
+                        }
+                    }.thenRun {
+                        Platform.runLater {
+                            toLoad.forEach { index ->
+                                if (index < items.size) {
+                                    items[index] = dataCache[index]
+                                }
+                                loadingIndices.remove(index)
+                            }
+                        }
+                    }
+                    loadingIndices.addAll(toLoad)
+                }
+            }
+
+            cellContentFactory = { item ->
+                HBox(15.0).apply {
+                    alignment = Pos.CENTER_LEFT
+                    padding = Insets(10.0, 20.0, 10.0, 20.0)
+                    prefHeight = 60.0
+                    style = "-fx-background-color: white; -fx-border-color: #eeeeee; -fx-border-width: 0 0 1 0;"
+                    
+                    val isPlaceholder = item == "Loading..."
+                    val icon = Circle(18.0, if (isPlaceholder) Color.LIGHTGRAY else Color.web("#4CAF50"))
+                    val label = Label(item).apply {
+                        style = if (isPlaceholder) "-fx-text-fill: gray; -fx-font-style: italic;" else "-fx-font-weight: bold;"
+                    }
+                    children.addAll(icon, label)
+                    maxWidth = Double.MAX_VALUE
+                }
+            }
+        }
+
+        val infoLabel = Label("Virtualized ListView with 1,000 items. Adjust parameters in the right panel.").apply {
+            padding = Insets(10.0)
+            style = "-fx-background-color: #fff9c4; -fx-border-color: #fbc02d; -fx-border-width: 0 0 1 0;"
+            maxWidth = Double.MAX_VALUE
+        }
+
+        val controlPanel = createControlPanel(
+            initialSensitivityX = inertialListView.sensitivityX,
+            onSensitivityXChange = { inertialListView.sensitivityX = it },
+            initialSensitivityY = inertialListView.sensitivityY,
+            onSensitivityYChange = { inertialListView.sensitivityY = it },
+            initialInertiaX = inertialListView.inertiaX,
+            onInertiaXChange = { inertialListView.inertiaX = it },
+            initialInertiaY = inertialListView.inertiaY,
+            onInertiaYChange = { inertialListView.inertiaY = it },
+            initialFriction = inertialListView.friction,
+            onFrictionChange = { inertialListView.friction = it },
+            initialDirectionLock = inertialListView.isDirectionLockEnabled,
+            onDirectionLockChange = { inertialListView.isDirectionLockEnabled = it },
+            initialDynamicVisibility = inertialListView.isDynamicScrollBarVisible,
+            onDynamicVisibilityChange = { inertialListView.isDynamicScrollBarVisible = it },
+            initialBounceEnabledX = inertialListView.isBounceEnabledX,
+            onBounceChangeX = { inertialListView.isBounceEnabledX = it },
+            initialBounceEnabledY = inertialListView.isBounceEnabledY,
+            onBounceChangeY = { inertialListView.isBounceEnabledY = it },
+            initialSnapEnabled = inertialListView.isSnapEnabled,
+            onSnapEnabledChange = { inertialListView.isSnapEnabled = it },
+            initialSnapUnitX = inertialListView.snapUnitX,
+            onSnapUnitXChange = { inertialListView.snapUnitX = it },
+            initialSnapUnitY = inertialListView.snapUnitY,
+            onSnapUnitYChange = { inertialListView.snapUnitY = it },
+            initialRefreshThreshold = inertialListView.refreshThreshold,
+            onRefreshThresholdChange = { inertialListView.refreshThreshold = it },
+            initialRippleEnabled = inertialListView.isRippleEnabled,
+            onRippleEnabledChange = { inertialListView.isRippleEnabled = it },
+            initialStickyHeaderEnabled = inertialListView.stickyHeaderEnabled,
+            onStickyHeaderChange = { inertialListView.stickyHeaderEnabled = it }
+        )
+
+        Platform.runLater {
+            inertialListView.update()
+        }
+
+        return BorderPane().apply {
+            top = infoLabel
+            center = inertialListView.root
+            right = controlPanel
+        }
     }
 
     private fun createListViewDemo(): Node {
         val inertialListView = InertialListView<String>().apply {
-            // アイテムの生成（定期的にヘッダーを挿入）
             val demoItems = mutableListOf<String>()
             for (i in 1..20) {
                 demoItems.add("HEADER: Category $i")
@@ -79,12 +193,11 @@ class TouchFXDemo : Application() {
             isSnapEnabled = true
             snapUnitY = 60.0
             isRippleEnabled = true
-            
-            // スティッキーヘッダー設定
+            isDirectionLockEnabled = false
+
             isHeader = { it.startsWith("HEADER:") }
             stickyHeaderEnabled = true
 
-            // セルの見た目をカスタマイズ
             cellContentFactory = { item ->
                 val isHeaderItem = isHeader(item)
                 HBox(15.0).apply {
@@ -113,7 +226,6 @@ class TouchFXDemo : Application() {
                 }
             }
 
-            // Pull-to-Refresh
             refreshIndicator = createIndicator()
             onRefresh = {
                 val future = CompletableFuture<Unit>()
@@ -128,7 +240,6 @@ class TouchFXDemo : Application() {
                 future
             }
 
-            // Swipe Actions
             swipeLeftFactory = { item, container ->
                 if (isHeader(item)) null else {
                     HBox().apply {
@@ -171,12 +282,19 @@ class TouchFXDemo : Application() {
         }
 
         val controlPanel = createControlPanel(
+            initialSensitivityX = inertialListView.sensitivityX,
             onSensitivityXChange = { inertialListView.sensitivityX = it },
+            initialSensitivityY = inertialListView.sensitivityY,
             onSensitivityYChange = { inertialListView.sensitivityY = it },
+            initialInertiaX = inertialListView.inertiaX,
             onInertiaXChange = { inertialListView.inertiaX = it },
+            initialInertiaY = inertialListView.inertiaY,
             onInertiaYChange = { inertialListView.inertiaY = it },
+            initialFriction = inertialListView.friction,
             onFrictionChange = { inertialListView.friction = it },
+            initialDirectionLock = inertialListView.isDirectionLockEnabled,
             onDirectionLockChange = { inertialListView.isDirectionLockEnabled = it },
+            initialDynamicVisibility = inertialListView.isDynamicScrollBarVisible,
             onDynamicVisibilityChange = { inertialListView.isDynamicScrollBarVisible = it },
             initialBounceEnabledX = inertialListView.isBounceEnabledX,
             onBounceChangeX = { inertialListView.isBounceEnabledX = it },
@@ -196,10 +314,12 @@ class TouchFXDemo : Application() {
             onStickyHeaderChange = { inertialListView.stickyHeaderEnabled = it }
         )
 
+        val indicator = inertialListView.refreshIndicator
+        val stackPane = if (indicator != null) StackPane(indicator, inertialListView.root) else StackPane(inertialListView.root)
+        stackPane.alignment = Pos.TOP_CENTER
+
         return BorderPane().apply {
-            center = StackPane(inertialListView.refreshIndicator, inertialListView.root).apply {
-                alignment = Pos.TOP_CENTER
-            }
+            center = stackPane
             right = controlPanel
         }
     }
@@ -219,29 +339,24 @@ class TouchFXDemo : Application() {
             this.content = content
             isBounceEnabledY = true
             isRippleEnabled = true
-            
-            // Pull-to-Refresh
+            isDirectionLockEnabled = true
             refreshIndicator = createIndicator()
-            onRefresh = {
-                val future = CompletableFuture<Unit>()
-                CompletableFuture.runAsync {
-                    Thread.sleep(2000)
-                }.thenRun {
-                    Platform.runLater {
-                        future.complete(Unit)
-                    }
-                }
-                future
-            }
         }
 
         val controlPanel = createControlPanel(
+            initialSensitivityX = inertialScrollPane.sensitivityX,
             onSensitivityXChange = { inertialScrollPane.sensitivityX = it },
+            initialSensitivityY = inertialScrollPane.sensitivityY,
             onSensitivityYChange = { inertialScrollPane.sensitivityY = it },
+            initialInertiaX = inertialScrollPane.inertiaX,
             onInertiaXChange = { inertialScrollPane.inertiaX = it },
+            initialInertiaY = inertialScrollPane.inertiaY,
             onInertiaYChange = { inertialScrollPane.inertiaY = it },
+            initialFriction = inertialScrollPane.friction,
             onFrictionChange = { inertialScrollPane.friction = it },
+            initialDirectionLock = inertialScrollPane.isDirectionLockEnabled,
             onDirectionLockChange = { inertialScrollPane.isDirectionLockEnabled = it },
+            initialDynamicVisibility = inertialScrollPane.isDynamicScrollBarVisible,
             onDynamicVisibilityChange = { inertialScrollPane.isDynamicScrollBarVisible = it },
             initialBounceEnabledX = inertialScrollPane.isBounceEnabledX,
             onBounceChangeX = { inertialScrollPane.isBounceEnabledX = it },
@@ -259,10 +374,12 @@ class TouchFXDemo : Application() {
             onRippleEnabledChange = { inertialScrollPane.isRippleEnabled = it }
         )
 
+        val indicator = inertialScrollPane.refreshIndicator
+        val stackPane = if (indicator != null) StackPane(indicator, inertialScrollPane.scrollPane) else StackPane(inertialScrollPane.scrollPane)
+        stackPane.alignment = Pos.TOP_CENTER
+
         return BorderPane().apply {
-            center = StackPane(inertialScrollPane.refreshIndicator, inertialScrollPane.scrollPane).apply {
-                alignment = Pos.TOP_CENTER
-            }
+            center = stackPane
             right = controlPanel
         }
     }
@@ -350,46 +467,6 @@ class TouchFXDemo : Application() {
             padding = Insets(40.0)
             alignment = Pos.TOP_LEFT
             
-            // AdaptivePane Demo
-            val adaptivePaneSection = VBox(10.0).apply {
-                val adaptivePane = AdaptivePane(breakpoint = 500.0).apply {
-                    padding = Insets(10.0)
-                    style = "-fx-border-color: #2196F3; -fx-border-width: 2px; -fx-border-radius: 5px;"
-                    children.addAll(
-                        Rectangle(100.0, 100.0, Color.LIGHTCORAL),
-                        Rectangle(100.0, 100.0, Color.LIGHTBLUE),
-                        Rectangle(100.0, 100.0, Color.LIGHTGREEN)
-                    )
-                }
-                children.addAll(
-                    Label("AdaptivePane (Breakpoint: 500px)").apply { style = "-fx-font-weight: bold;" },
-                    Label("Try resizing the window width above/below 500px to see layout shift."),
-                    adaptivePane
-                )
-            }
-
-            // FluidGridPane Demo
-            val fluidGridSection = VBox(10.0).apply {
-                val fluidGrid = FluidGridPane(columnWidth = 150.0).apply {
-                    padding = Insets(10.0)
-                    style = "-fx-border-color: #4CAF50; -fx-border-width: 2px; -fx-border-radius: 5px;"
-                    // 12個の要素を追加
-                    children.addAll((1..12).map {
-                        StackPane().apply {
-                            prefWidth = 150.0
-                            prefHeight = 80.0
-                            style = "-fx-background-color: #e0e0e0; -fx-background-radius: 5px;"
-                            children.add(Label("Item #$it"))
-                        }
-                    })
-                }
-                children.addAll(
-                    Label("FluidGridPane (Column Width: 150px)").apply { style = "-fx-font-weight: bold;" },
-                    Label("The number of columns automatically adjusts to the available width."),
-                    fluidGrid
-                )
-            }
-
             // ResponsiveLayout Demo
             val responsiveLayoutSection = VBox(10.0).apply {
                 val nav = HBox(20.0).apply {
@@ -434,6 +511,46 @@ class TouchFXDemo : Application() {
                     Label("Narrow (< 600px): Bottom Navigation. Wide (>= 600px): Navigation Rail."),
                     positionSelectors,
                     responsiveLayout
+                )
+            }
+
+            // AdaptivePane Demo
+            val adaptivePaneSection = VBox(10.0).apply {
+                val adaptivePane = AdaptivePane(breakpoint = 500.0).apply {
+                    padding = Insets(10.0)
+                    style = "-fx-border-color: #2196F3; -fx-border-width: 2px; -fx-border-radius: 5px;"
+                    children.addAll(
+                        Rectangle(100.0, 100.0, Color.LIGHTCORAL),
+                        Rectangle(100.0, 100.0, Color.LIGHTBLUE),
+                        Rectangle(100.0, 100.0, Color.LIGHTGREEN)
+                    )
+                }
+                children.addAll(
+                    Label("AdaptivePane (Breakpoint: 500px)").apply { style = "-fx-font-weight: bold;" },
+                    Label("Try resizing the window width above/below 500px to see layout shift."),
+                    adaptivePane
+                )
+            }
+
+            // FluidGridPane Demo
+            val fluidGridSection = VBox(10.0).apply {
+                val fluidGrid = FluidGridPane(columnWidth = 150.0).apply {
+                    padding = Insets(10.0)
+                    style = "-fx-border-color: #4CAF50; -fx-border-width: 2px; -fx-border-radius: 5px;"
+                    // 12個の要素を追加
+                    children.addAll((1..12).map {
+                        StackPane().apply {
+                            prefWidth = 150.0
+                            prefHeight = 80.0
+                            style = "-fx-background-color: #e0e0e0; -fx-background-radius: 5px;"
+                            children.add(Label("Item #$it"))
+                        }
+                    })
+                }
+                children.addAll(
+                    Label("FluidGridPane (Column Width: 150px)").apply { style = "-fx-font-weight: bold;" },
+                    Label("The number of columns automatically adjusts to the available width."),
+                    fluidGrid
                 )
             }
 
@@ -567,26 +684,33 @@ class TouchFXDemo : Application() {
     }
 
     private fun createControlPanel(
+        initialSensitivityX: Double = 1.0,
         onSensitivityXChange: (Double) -> Unit,
+        initialSensitivityY: Double = 1.0,
         onSensitivityYChange: (Double) -> Unit,
+        initialInertiaX: Double = 0.05,
         onInertiaXChange: (Double) -> Unit,
+        initialInertiaY: Double = 0.05,
         onInertiaYChange: (Double) -> Unit,
+        initialFriction: Double = 0.92,
         onFrictionChange: (Double) -> Unit,
+        initialDirectionLock: Boolean = false,
         onDirectionLockChange: (Boolean) -> Unit,
+        initialDynamicVisibility: Boolean = false,
         onDynamicVisibilityChange: (Boolean) -> Unit,
-        initialBounceEnabledX: Boolean,
+        initialBounceEnabledX: Boolean = false,
         onBounceChangeX: (Boolean) -> Unit,
-        initialBounceEnabledY: Boolean,
+        initialBounceEnabledY: Boolean = false,
         onBounceChangeY: (Boolean) -> Unit,
-        initialSnapEnabled: Boolean,
+        initialSnapEnabled: Boolean = false,
         onSnapEnabledChange: (Boolean) -> Unit,
-        initialSnapUnitX: Double,
+        initialSnapUnitX: Double = 0.0,
         onSnapUnitXChange: (Double) -> Unit,
-        initialSnapUnitY: Double,
+        initialSnapUnitY: Double = 0.0,
         onSnapUnitYChange: (Double) -> Unit,
-        initialRefreshThreshold: Double,
+        initialRefreshThreshold: Double = 50.0,
         onRefreshThresholdChange: (Double) -> Unit,
-        initialRippleEnabled: Boolean,
+        initialRippleEnabled: Boolean = false,
         onRippleEnabledChange: (Boolean) -> Unit,
         initialStickyHeaderEnabled: Boolean = false,
         onStickyHeaderChange: ((Boolean) -> Unit)? = null
@@ -609,11 +733,11 @@ class TouchFXDemo : Application() {
             
             Label("Features").apply { style = "-fx-font-weight: bold;" },
             CheckBox("Direction Lock").apply {
-                isSelected = false
+                isSelected = initialDirectionLock
                 selectedProperty().addListener { _, _, newValue -> onDirectionLockChange(newValue) }
             },
             CheckBox("Dynamic ScrollBar").apply {
-                isSelected = false
+                isSelected = initialDynamicVisibility
                 selectedProperty().addListener { _, _, newValue -> onDynamicVisibilityChange(newValue) }
             },
             CheckBox("Bounce Effect X").apply {
@@ -643,15 +767,15 @@ class TouchFXDemo : Application() {
             Label("Parameters").apply { style = "-fx-font-weight: bold;" },
             
             Label("Sensitivity X"),
-            createSlider(0.0001, 0.05, 0.005, onSensitivityXChange),
+            createSlider(0.1, 2.0, initialSensitivityX, onSensitivityXChange),
             Label("Sensitivity Y"),
-            createSlider(0.0001, 0.05, 0.005, onSensitivityYChange),
+            createSlider(0.1, 2.0, initialSensitivityY, onSensitivityYChange),
             Label("Inertia X"),
-            createSlider(0.0001, 0.01, 0.0005, onInertiaXChange),
+            createSlider(0.001, 0.2, initialInertiaX, onInertiaXChange),
             Label("Inertia Y"),
-            createSlider(0.0001, 0.01, 0.0005, onInertiaYChange),
+            createSlider(0.001, 0.2, initialInertiaY, onInertiaYChange),
             Label("Friction"),
-            createSlider(0.5, 0.99, 0.92, onFrictionChange),
+            createSlider(0.5, 0.99, initialFriction, onFrictionChange),
             Label("Snap Unit X"),
             createSlider(0.0, 100.0, initialSnapUnitX, onSnapUnitXChange),
             Label("Snap Unit Y"),

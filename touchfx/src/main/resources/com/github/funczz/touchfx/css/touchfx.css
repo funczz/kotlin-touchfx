@@ -6,15 +6,19 @@
     -fx-background-color: transparent;
 }
 
-/* スクロールバーを細く、あるいは目立たないように調整 */
+/* スクロールバーの視認性を改善 */
 .touch-fx .scroll-bar:vertical {
-    -fx-background-color: transparent;
-    -fx-pref-width: 6px;
+    -fx-background-color: rgba(0, 0, 0, 0.1);
+    -fx-pref-width: 12px;
 }
 
 .touch-fx .scroll-bar:vertical .thumb {
-    -fx-background-color: rgba(128, 128, 128, 0.4);
-    -fx-background-radius: 3px;
+    -fx-background-color: rgba(100, 100, 100, 0.8);
+    -fx-background-radius: 6px;
+}
+
+.touch-fx .scroll-bar:vertical .thumb:hover {
+    -fx-background-color: rgba(80, 80, 80, 0.9);
 }
 
 .touch-fx .scroll-bar:vertical .increment-button,
@@ -38,7 +42,7 @@
     -fx-background-color: derive(-fx-control-inner-background, -5%);
 }
 
-/* スクロールバーを隠すためのスタイル */
+/* スクロールバーを完全に隠す必要がある場合のためのクラス */
 .hide-scroll-bar .scroll-bar {
     -fx-opacity: 0;
 }

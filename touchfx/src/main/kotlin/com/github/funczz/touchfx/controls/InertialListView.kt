@@ -3,7 +3,9 @@ package com.github.funczz.touchfx.controls
 import com.github.funczz.touchfx.TouchFX
 import com.github.funczz.touchfx.behavior.TouchBehavior
 import com.github.funczz.touchfx.skin.RippleEffect
+import javafx.animation.AnimationTimer
 import javafx.application.Platform
+import javafx.collections.FXCollections
 import javafx.collections.ObservableList
 import javafx.geometry.Pos
 import javafx.scene.Node
@@ -11,33 +13,22 @@ import javafx.scene.control.Label
 import javafx.scene.control.ListCell
 import javafx.scene.control.ListView
 import javafx.scene.control.ScrollBar
+import javafx.scene.control.skin.ListViewSkin
+import javafx.scene.control.skin.VirtualFlow
 import javafx.scene.layout.AnchorPane
 import javafx.scene.layout.StackPane
 
 /**
  * 慣性スクロール機能を持つ [ListView] のラッパーコンポーネントです。
- * リストアイテムのスワイプアクションやスティッキーヘッダーにも対応しています。
- *
- * @param T リストアイテムの型
- * @property listView ラップされた標準の [ListView]
- * @param useDefaultStyle デフォルトのスタイルシートを適用するかどうか
  */
 class InertialListView<T>(
     val listView: ListView<T> = ListView(),
     useDefaultStyle: Boolean = true
 ) {
 
-    /**
-     * コンポーネントのルートノード。
-     * ListView とスティッキーヘッダーなどのオーバーレイを保持します。
-     */
     val root: StackPane = StackPane(listView)
-
     private val behavior = TouchBehavior(listView)
 
-    /**
-     * リストアイテムのクリック時に波紋効果 (Ripple Effect) を表示するかどうか。
-     */
     var isRippleEnabled: Boolean = false
         set(value) {
             if (field != value) {
@@ -46,56 +37,36 @@ class InertialListView<T>(
             }
         }
 
-    /**
-     * 右側にスワイプした際に表示されるノードを生成するファクトリ。
-     * null を返すとそのアイテムのスワイプ（右方向）は無効になります。
-     */
     var swipeLeftFactory: ((T, SwipeableContainer) -> Node?)? = null
         set(value) {
             field = value
             updateCellFactory()
         }
 
-    /**
-     * 左側にスワイプした際に表示されるノードを生成するファクトリ。
-     * null を返すとそのアイテムのスワイプ（左方向）は無効になります。
-     */
     var swipeRightFactory: ((T, SwipeableContainer) -> Node?)? = null
         set(value) {
             field = value
             updateCellFactory()
         }
 
-    /**
-     * スワイプアクションを確定させるしきい値（ピクセル）。
-     */
     var swipeThreshold: Double = 50.0
         set(value) {
             field = value
             updateCellFactory()
         }
 
-    /**
-     * セルのメインコンテンツを生成するファクトリ。
-     */
     var cellContentFactory: ((T) -> Node)? = null
         set(value) {
             field = value
             updateCellFactory()
         }
 
-    /**
-     * アイテムがヘッダーであるかどうかを判定する述語。
-     */
     var isHeader: (T) -> Boolean = { false }
         set(value) {
             field = value
             updateStickyHeader()
         }
 
-    /**
-     * スティッキーヘッダー機能を有効にするかどうか。
-     */
     var stickyHeaderEnabled: Boolean = false
         set(value) {
             field = value
@@ -109,9 +80,23 @@ class InertialListView<T>(
             }
         }
 
+    var onVisibleRangeChanged: ((Int, Int) -> Unit)? = null
+
     private val floatingHeaderContainer = AnchorPane().apply {
         isMouseTransparent = true
         StackPane.setAlignment(this, Pos.TOP_LEFT)
+    }
+
+    private var lastFirstVisible: Int = -1
+    private var lastLastVisible: Int = -1
+    private var lastUpdateTime: Long = 0L
+    private val updateIntervalThreshold = 50_000_000L
+
+    private val visibilityTimer = object : AnimationTimer() {
+        override fun handle(now: Long) {
+            updateVisibleRange()
+            if (stickyHeaderEnabled) updateStickyHeader()
+        }
     }
 
     init {
@@ -123,9 +108,56 @@ class InertialListView<T>(
         }
         updateCellFactory()
 
+        visibilityTimer.start()
+
         Platform.runLater {
-            findVerticalScrollBar()?.valueProperty()?.addListener { _, _, _ ->
-                if (stickyHeaderEnabled) updateStickyHeader()
+            findVerticalScrollBar()?.let { scrollBar ->
+                scrollBar.valueProperty().addListener { _, _, _ ->
+                    throttleUpdate()
+                }
+            }
+            update()
+        }
+    }
+
+    private fun throttleUpdate() {
+        val now = System.nanoTime()
+        if (now - lastUpdateTime > updateIntervalThreshold) {
+            lastUpdateTime = now
+            updateVisibleRange()
+            if (stickyHeaderEnabled) updateStickyHeader()
+        }
+    }
+
+    fun setVirtualItems(count: Int, placeholder: T? = null) {
+        val list = ArrayList<T?>(count)
+        for (i in 0 until count) {
+            list.add(placeholder)
+        }
+        @Suppress("UNCHECKED_CAST")
+        items = FXCollections.observableList(list as List<T>)
+    }
+
+    fun update() {
+        updateVisibleRange()
+        if (stickyHeaderEnabled) updateStickyHeader()
+    }
+
+    fun updateVisibleRange() {
+        val skin = listView.skin as? ListViewSkin<T> ?: return
+        val flow = skin.children.find { it is VirtualFlow<*> } as? VirtualFlow<*> ?: return
+
+        val firstCell = flow.firstVisibleCell as? ListCell<*>
+        val lastCell = flow.lastVisibleCell as? ListCell<*>
+
+        if (firstCell != null && lastCell != null) {
+            val first = firstCell.index
+            val last = lastCell.index
+
+            if (first != lastFirstVisible || last != lastLastVisible) {
+                lastFirstVisible = first
+                lastLastVisible = last
+                onVisibleRangeChanged?.invoke(first, last)
             }
         }
     }
@@ -133,21 +165,17 @@ class InertialListView<T>(
     private fun updateCellFactory() {
         listView.setCellFactory { _ ->
             object : ListCell<T>() {
-                private var swipeContainer: SwipeableContainer? = null
-
                 override fun updateItem(item: T, empty: Boolean) {
                     super.updateItem(item, empty)
-                    if (empty || item == null) {
+                    if (empty) {
                         text = null
                         graphic = null
-                        swipeContainer = null
                     } else {
-                        val content = cellContentFactory?.invoke(item) ?: Label(item.toString()).apply {
+                        val content = cellContentFactory?.invoke(item) ?: Label(item?.toString() ?: "").apply {
                             maxWidth = Double.MAX_VALUE
                             styleClass.add("label")
                         }
 
-                        // スワイプ機能が有効な場合、SwipeableContainer でラップする
                         if (swipeLeftFactory != null || swipeRightFactory != null) {
                             val wrapper = AnchorPane(content).apply {
                                 style = "-fx-background-color: white;"
@@ -156,18 +184,14 @@ class InertialListView<T>(
                                 AnchorPane.setLeftAnchor(content, 10.0)
                                 AnchorPane.setRightAnchor(content, 10.0)
                             }
-                            
                             val sContainer = SwipeableContainer(wrapper).apply {
                                 threshold = swipeThreshold
                             }
-                            // ここで本物の sContainer をファクトリに渡す
                             val leftNode = swipeLeftFactory?.invoke(item, sContainer)
                             val rightNode = swipeRightFactory?.invoke(item, sContainer)
-                            
                             if (leftNode != null || rightNode != null) {
                                 sContainer.leftBackgroundNode = leftNode
                                 sContainer.rightBackgroundNode = rightNode
-                                swipeContainer = sContainer
                                 graphic = sContainer
                                 text = null
                             } else {
@@ -235,13 +259,8 @@ class InertialListView<T>(
             val nextHeaderTop = nextHeaderCell.localToScene(0.0, 0.0).y
             val containerTop = listView.localToScene(0.0, 0.0).y
             val distance = nextHeaderTop - containerTop
-            
             val headerHeight = headerWrapper.boundsInLocal.height
-            if (distance < headerHeight) {
-                headerWrapper.translateY = distance - headerHeight
-            } else {
-                headerWrapper.translateY = 0.0
-            }
+            headerWrapper.translateY = if (distance < headerHeight) distance - headerHeight else 0.0
         } else {
             headerWrapper.translateY = 0.0
         }
@@ -253,196 +272,131 @@ class InertialListView<T>(
             .find { it.orientation == javafx.geometry.Orientation.VERTICAL }
     }
 
-    /**
-     * リストアイテムのリスト。
-     */
     var items: ObservableList<T>
         get() = listView.items
         set(value) {
             listView.items = value
         }
 
-    /**
-     * スクロールの感度。
-     */
     var sensitivity: Double
         get() = behavior.sensitivity
         set(value) {
             behavior.sensitivity = value
         }
 
-    /**
-     * 水平方向のスクロール感度。
-     */
     var sensitivityX: Double
         get() = behavior.sensitivityX
         set(value) {
             behavior.sensitivityX = value
         }
 
-    /**
-     * 垂直方向のスクロール感度。
-     */
     var sensitivityY: Double
         get() = behavior.sensitivityY
         set(value) {
             behavior.sensitivityY = value
         }
 
-    /**
-     * 慣性の強さ。
-     */
     var inertia: Double
         get() = behavior.inertia
         set(value) {
             behavior.inertia = value
         }
 
-    /**
-     * 水平方向の慣性の強さ。
-     */
     var inertiaX: Double
         get() = behavior.inertiaX
         set(value) {
             behavior.inertiaX = value
         }
 
-    /**
-     * 垂直方向の慣性の強さ。
-     */
     var inertiaY: Double
         get() = behavior.inertiaY
         set(value) {
             behavior.inertiaY = value
         }
 
-    /**
-     * 摩擦係数。
-     */
     var friction: Double
         get() = behavior.friction
         set(value) {
             behavior.friction = value
         }
 
-    /**
-     * スクロール方向のロックを有効にするかどうか。
-     */
     var isDirectionLockEnabled: Boolean
         get() = behavior.isDirectionLockEnabled
         set(value) {
             behavior.isDirectionLockEnabled = value
         }
 
-    /**
-     * スクロールバーを動的に表示するかどうか。
-     */
     var isDynamicScrollBarVisible: Boolean
         get() = behavior.isDynamicScrollBarVisible
         set(value) {
             behavior.isDynamicScrollBarVisible = value
         }
 
-    /**
-     * 境界での跳ね返り (Bounce) を有効にするかどうか。
-     */
     var isBounceEnabled: Boolean
         get() = behavior.isBounceEnabled
         set(value) {
             behavior.isBounceEnabled = value
         }
 
-    /**
-     * 水平方向の境界での跳ね返り (Bounce) を有効にするかどうか。
-     */
     var isBounceEnabledX: Boolean
         get() = behavior.isBounceEnabledX
         set(value) {
             behavior.isBounceEnabledX = value
         }
 
-    /**
-     * 垂直方向の境界での跳ね返り (Bounce) を有効にするかどうか。
-     */
     var isBounceEnabledY: Boolean
         get() = behavior.isBounceEnabledY
         set(value) {
             behavior.isBounceEnabledY = value
         }
 
-    /**
-     * スナップ（吸着）機能を有効にするかどうか。
-     */
     var isSnapEnabled: Boolean
         get() = behavior.isSnapEnabled
         set(value) {
             behavior.isSnapEnabled = value
         }
 
-    /**
-     * 水平方向のスナップ単位（ピクセル）。
-     */
     var snapUnitX: Double
         get() = behavior.snapUnitX
         set(value) {
             behavior.snapUnitX = value
         }
 
-    /**
-     * 垂直方向のスナップ単位（ピクセル）。
-     */
     var snapUnitY: Double
         get() = behavior.snapUnitY
         set(value) {
             behavior.snapUnitY = value
         }
 
-    /**
-     * スナップ位置への復元速度。
-     */
     var snapRestoration: Double
         get() = behavior.snapRestoration
         set(value) {
             behavior.snapRestoration = value
         }
 
-    /**
-     * Pull-to-Refresh 実行時のコールバック。
-     */
     var onRefresh: (() -> java.util.concurrent.CompletableFuture<Unit>)?
         get() = behavior.onRefresh
         set(value) {
             behavior.onRefresh = value
         }
 
-    /**
-     * Pull-to-Refresh をキックするための Bounce しきい値（ピクセル）。
-     */
     var refreshThreshold: Double
         get() = behavior.refreshThreshold
         set(value) {
             behavior.refreshThreshold = value
         }
 
-    /**
-     * 現在リフレッシュ実行中かどうか。
-     */
     val isRefreshing: Boolean
         get() = behavior.isRefreshing
 
-    /**
-     * リフレッシュ中に表示されるインジケータ。
-     */
     var refreshIndicator: javafx.scene.Node?
         get() = behavior.refreshIndicator
         set(value) {
             behavior.refreshIndicator = value
         }
 
-    /**
-     * 振る舞いを解除し、リソースを解放します。
-     */
     fun dispose() {
+        visibilityTimer.stop()
         behavior.dispose()
     }
 }
