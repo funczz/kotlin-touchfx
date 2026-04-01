@@ -84,7 +84,7 @@ val tabPane = TouchTabPane()
 tabPane.tabs.add(Tab("Home"))
 ```
 
-### 2.4 レスポンシブコンテナ
+### 2.4 AdaptiveLayouts (レスポンシブコンテナ)
 
 画面幅に応じて動的にレイアウトを調整するコンテナです。
 
@@ -125,10 +125,11 @@ TouchFX には、タッチ操作をより快適にするための高度な機能
 ### 3.1 方向ロック (Direction Lock)
 
 ドラッグ開始時の移動方向に基づいて、スクロール軸を水平または垂直に固定します。
+垂直リスト内のスワイプアクション等との干渉を防ぐため、デフォルトで **有効 (true)** に設定されています。
 
 ```kotlin
-// 有効化 (デフォルト: false)
-inertialScrollPane.isDirectionLockEnabled = true
+// 無効化する場合
+inertialScrollPane.isDirectionLockEnabled = false
 ```
 
 ### 3.2 スクロールバーの動的表示 (Dynamic Visibility)
@@ -172,7 +173,11 @@ inertialListView.onRefresh = {
 }
 ```
 
-### 3.6 スワイプアクション (Swipe Actions)
+### 3.6 タッチフィードバック (Ripple Effect)
+
+タップした位置から波紋が広がる視覚効果を付与します。
+
+### 3.7 スワイプアクション (Swipe Actions)
 
 リストアイテムを左右にスワイプして、アクションボタン（編集、削除など）を表示します。
 
@@ -182,13 +187,29 @@ inertialListView.swipeLeftFactory = { item, container ->
 }
 ```
 
-### 3.7 スティッキーヘッダー (Sticky Headers)
+### 3.8 スティッキーヘッダー (Sticky Headers)
 
 リスト内の見出し項目を上端に固定して表示します。
 
 ```kotlin
 inertialListView.isHeader = { it.startsWith("HEADER:") }
 inertialListView.stickyHeaderEnabled = true
+```
+
+### 3.9 オンデマンド・データロード (On-Demand Data Loading)
+
+大量のデータを扱う際、画面に表示されている範囲のデータのみを動的にロードします。
+
+```kotlin
+val listView = InertialListView<MyData>()
+
+// 1. 仮想的なアイテム枠を確保
+listView.setVirtualItems(10_000, placeholder = null)
+
+// 2. 可視範囲が変化した際のデータ取得ロジックを実装
+listView.onVisibleRangeChanged = { first, last ->
+    // 指定範囲 (first..last) のデータを非同期で取得して items を更新
+}
 ```
 
 ## 4. ジェスチャー操作 (Gestures)
@@ -207,14 +228,13 @@ val behavior = myNode.addGestureBehavior {
 
 スクロールの挙動は、以下のプロパティを通じて動的に調整可能です。
 
-- `sensitivity`: スクロールの感度。
-- `inertia`: 慣性の強さ。
+- `sensitivity`: スクロールの感度。デフォルトの **1.0** は指の移動量とリストのスクロール量が 1:1 で同期するようにスケーリングされています。
+- `inertia`: 慣性の強さ。指を離した後の「滑り」の長さを決定します。
 - `friction`: 摩擦係数（デフォルト: `0.92`）。
 
 ## 6. スタイリング
 
-デフォルトでタッチ操作に最適化された CSS が適用されます。
-独自のスタイルのみを適用するには、コンストラクタで `useDefaultStyle = false` を指定してください。
+デフォルトでタッチ操作に最適化された CSS が適用されます。独自のスタイルを適用するには `useDefaultStyle = false` を指定してください。
 
 ```kotlin
 val button = TouchButton("Custom", useDefaultStyle = false)
