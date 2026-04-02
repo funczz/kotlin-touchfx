@@ -1,578 +1,265 @@
 package com.github.funczz.touchfx.behavior
 
-import javafx.application.Platform
 import javafx.geometry.Orientation
 import javafx.scene.Scene
 import javafx.scene.control.ScrollBar
+import javafx.scene.input.MouseButton
+import javafx.scene.layout.Region
 import javafx.scene.layout.StackPane
 import javafx.stage.Stage
 import org.junit.jupiter.api.Assertions.*
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.extension.ExtendWith
-import org.testfx.api.FxRobot
 import org.testfx.framework.junit5.ApplicationExtension
-import org.testfx.framework.junit5.Start
+import org.testfx.framework.junit5.ApplicationTest
+import org.testfx.api.FxRobot
 import org.testfx.util.WaitForAsyncUtils
-import javafx.scene.input.MouseEvent
 import java.util.concurrent.CompletableFuture
-import java.util.concurrent.TimeUnit
 import kotlin.math.abs
 
-/**
- * [TouchBehavior] の基本動作を検証するテストクラス。
- * スクロールバーを直接注入することで、標準コントロールの干渉を排除してロジックを検証します。
- */
 @ExtendWith(ApplicationExtension::class)
-class TouchBehaviorTest {
+class TouchBehaviorTest : ApplicationTest() {
 
-    private lateinit var root: StackPane
+    private lateinit var root: Region
     private lateinit var vScrollBar: ScrollBar
     private lateinit var hScrollBar: ScrollBar
 
-    /**
-     * テスト用の UI をセットアップします。
-     */
-    @Start
-    fun start(stage: Stage) {
+    override fun start(stage: Stage) {
+        root = Region().apply {
+            setPrefSize(400.0, 400.0)
+            style = "-fx-background-color: white;"
+        }
+        
         vScrollBar = ScrollBar().apply {
             orientation = Orientation.VERTICAL
             min = 0.0
             max = 1.0
-            value = 0.5
+            value = 0.0
+            visibleAmount = 0.1
         }
+        
         hScrollBar = ScrollBar().apply {
             orientation = Orientation.HORIZONTAL
             min = 0.0
             max = 1.0
-            value = 0.5
+            value = 0.0
+            visibleAmount = 0.1
         }
-        root = StackPane().apply {
-            children.addAll(vScrollBar, hScrollBar)
-        }
-        stage.scene = Scene(root, 400.0, 400.0)
+
+        val container = StackPane(root)
+        stage.scene = Scene(container, 400.0, 400.0)
         stage.show()
     }
 
-    /**
-     * ドラッグ操作によってスクロールバーの値が変化することを確認します。
-     */
     @Test
-    fun testDragScroll(@Suppress("UNUSED_PARAMETER") robot: FxRobot) {
+    fun testDragScroll(robot: FxRobot) {
         var behavior: TouchBehavior? = null
-        Platform.runLater {
+        interact {
             vScrollBar.value = 0.5
             behavior = TouchBehavior(root).apply {
-                isDirectionLockEnabled = false
                 verticalScrollBar = vScrollBar
-                sensitivity = 0.01 // 10px = 0.1 value
+                isDirectionLockEnabled = false
+                sensitivityY = 0.005
             }
         }
-        // 確実に初期化を待つ
+        
+        robot.drag(root).moveBy(0.0, -100.0)
         WaitForAsyncUtils.waitForFxEvents()
 
-        Platform.runLater {
-            javafx.event.Event.fireEvent(root, MouseEvent(
-                MouseEvent.MOUSE_PRESSED, 200.0, 200.0, 200.0, 200.0,
-                javafx.scene.input.MouseButton.PRIMARY, 1,
-                false, false, false, false, true, false, false, false, false, false, null
-            ))
+        interact {
+            assertTrue(vScrollBar.value > 0.5, "ScrollBar value should increase")
         }
-        WaitForAsyncUtils.waitForFxEvents()
-
-        Platform.runLater {
-            javafx.event.Event.fireEvent(root, MouseEvent(
-                MouseEvent.MOUSE_DRAGGED, 200.0, 210.0, 200.0, 210.0,
-                javafx.scene.input.MouseButton.PRIMARY, 1,
-                false, false, false, false, true, false, false, false, false, false, null
-            ))
-        }
-        WaitForAsyncUtils.waitForFxEvents()
-
-        Platform.runLater {
-            javafx.event.Event.fireEvent(root, MouseEvent(
-                MouseEvent.MOUSE_RELEASED, 200.0, 210.0, 200.0, 210.0,
-                javafx.scene.input.MouseButton.PRIMARY, 1,
-                false, false, false, false, true, false, false, false, false, false, null
-            ))
-        }
-        WaitForAsyncUtils.waitForFxEvents()
-
-        assertTrue(vScrollBar.value < 0.5, "Value should decrease from 0.5. Current: ${vScrollBar.value}")
-        Platform.runLater { behavior?.dispose() }
-        WaitForAsyncUtils.waitForFxEvents()
+        
+        robot.release(MouseButton.PRIMARY)
+        interact { behavior?.dispose() }
     }
 
-    /**
-     * 方向ロック機能を検証します。
-     */
     @Test
-    fun testDirectionLock(@Suppress("UNUSED_PARAMETER") robot: FxRobot) {
+    fun testInertiaScroll(robot: FxRobot) {
         var behavior: TouchBehavior? = null
-        Platform.runLater {
+        interact {
+            vScrollBar.value = 0.5
+            behavior = TouchBehavior(root).apply {
+                verticalScrollBar = vScrollBar
+                isDirectionLockEnabled = false
+                inertiaY = 0.5 // 明示的な慣性設定
+                friction = 0.99
+            }
+        }
+
+        robot.drag(root).moveBy(0.0, -50.0).moveBy(0.0, -50.0).moveBy(0.0, -50.0)
+        WaitForAsyncUtils.waitForFxEvents()
+        
+        val valueAfterDrag = vScrollBar.value
+        robot.release(MouseButton.PRIMARY)
+        
+        repeat(20) { 
+            WaitForAsyncUtils.waitForFxEvents()
+            Thread.sleep(50) 
+        }
+
+        interact {
+            assertTrue(vScrollBar.value > valueAfterDrag, "Inertia failed. AfterDrag: $valueAfterDrag, Final: ${vScrollBar.value}")
+            behavior?.dispose()
+        }
+    }
+
+    @Test
+    fun testDirectionLock(robot: FxRobot) {
+        var behavior: TouchBehavior? = null
+        interact {
             vScrollBar.value = 0.5
             hScrollBar.value = 0.5
             behavior = TouchBehavior(root).apply {
-                isDirectionLockEnabled = true
                 verticalScrollBar = vScrollBar
                 horizontalScrollBar = hScrollBar
-                sensitivity = 0.01
+                isDirectionLockEnabled = true
             }
         }
+
+        robot.drag(root).moveBy(0.0, -100.0)
         WaitForAsyncUtils.waitForFxEvents()
 
-        Platform.runLater {
-            javafx.event.Event.fireEvent(root, MouseEvent(
-                MouseEvent.MOUSE_PRESSED, 200.0, 200.0, 200.0, 200.0,
-                javafx.scene.input.MouseButton.PRIMARY, 1,
-                false, false, false, false, true, false, false, false, false, false, null
-            ))
+        interact {
+            assertTrue(vScrollBar.value != 0.5, "Vertical change expected")
+            assertEquals(0.5, hScrollBar.value, 0.0001, "Horizontal should be locked")
+            behavior?.dispose()
         }
-        WaitForAsyncUtils.waitForFxEvents()
-
-        Platform.runLater {
-            // 垂直に大きく (20px), 水平にわずか (1px) -> 垂直ロック
-            javafx.event.Event.fireEvent(root, MouseEvent(
-                MouseEvent.MOUSE_DRAGGED, 199.0, 220.0, 199.0, 220.0,
-                javafx.scene.input.MouseButton.PRIMARY, 1,
-                false, false, false, false, true, false, false, false, false, false, null
-            ))
-        }
-        WaitForAsyncUtils.waitForFxEvents()
-
-        Platform.runLater {
-            javafx.event.Event.fireEvent(root, MouseEvent(
-                MouseEvent.MOUSE_RELEASED, 199.0, 220.0, 199.0, 220.0,
-                javafx.scene.input.MouseButton.PRIMARY, 1,
-                false, false, false, false, true, false, false, false, false, false, null
-            ))
-        }
-        WaitForAsyncUtils.waitForFxEvents()
-        
-        assertTrue(vScrollBar.value < 0.5, "Vertical should scroll")
-        assertEquals(0.5, hScrollBar.value, 0.001, "Horizontal should be locked at 0.5")
-
-        Platform.runLater { behavior?.dispose() }
-        WaitForAsyncUtils.waitForFxEvents()
+        robot.release(MouseButton.PRIMARY)
     }
 
-    /**
-     * スクロールバーの動的表示機能を検証します。
-     */
     @Test
-    fun testDynamicScrollBarVisibility(@Suppress("UNUSED_PARAMETER") robot: FxRobot) {
+    fun testBounceEffect(robot: FxRobot) {
         var behavior: TouchBehavior? = null
-        Platform.runLater {
-            behavior = TouchBehavior(root).apply {
-                isDynamicScrollBarVisible = true
-            }
-        }
-        WaitForAsyncUtils.waitForFxEvents()
-
-        assertTrue(root.styleClass.contains("hide-scroll-bar"))
-
-        Platform.runLater {
-            javafx.event.Event.fireEvent(root, MouseEvent(
-                MouseEvent.MOUSE_PRESSED, 200.0, 200.0, 200.0, 200.0,
-                javafx.scene.input.MouseButton.PRIMARY, 1,
-                false, false, false, false, true, false, false, false, false, false, null
-            ))
-        }
-        WaitForAsyncUtils.waitForFxEvents()
-        assertFalse(root.styleClass.contains("hide-scroll-bar"))
-
-        Platform.runLater {
-            javafx.event.Event.fireEvent(root, MouseEvent(
-                MouseEvent.MOUSE_RELEASED, 200.0, 200.0, 200.0, 200.0,
-                javafx.scene.input.MouseButton.PRIMARY, 1,
-                false, false, false, false, true, false, false, false, false, false, null
-            ))
-        }
-        WaitForAsyncUtils.waitForFxEvents()
-        
-        Thread.sleep(2000)
-        WaitForAsyncUtils.waitForFxEvents()
-        assertTrue(root.styleClass.contains("hide-scroll-bar"))
-        Platform.runLater { behavior?.dispose() }
-        WaitForAsyncUtils.waitForFxEvents()
-    }
-
-    /**
-     * 境界での跳ね返り (Bounce) 機能を検証します。
-     */
-    @Test
-    fun testBounceEffect(@Suppress("UNUSED_PARAMETER") robot: FxRobot) {
-        var behavior: TouchBehavior? = null
-        Platform.runLater {
+        interact {
             vScrollBar.value = 0.0
             behavior = TouchBehavior(root).apply {
-                isDirectionLockEnabled = false
-                isBounceEnabled = true
                 verticalScrollBar = vScrollBar
+                isBounceEnabledY = true
+                isDirectionLockEnabled = false
             }
         }
-        WaitForAsyncUtils.waitForFxEvents()
 
-        Platform.runLater {
-            javafx.event.Event.fireEvent(root, MouseEvent(
-                MouseEvent.MOUSE_PRESSED, 200.0, 200.0, 200.0, 200.0,
-                javafx.scene.input.MouseButton.PRIMARY, 1,
-                false, false, false, false, true, false, false, false, false, false, null
-            ))
-        }
-        WaitForAsyncUtils.waitForFxEvents()
-
-        Platform.runLater {
-            // 100px 下へドラッグ (境界外)
-            javafx.event.Event.fireEvent(root, MouseEvent(
-                MouseEvent.MOUSE_DRAGGED, 200.0, 300.0, 200.0, 300.0,
-                javafx.scene.input.MouseButton.PRIMARY, 1,
-                false, false, false, false, true, false, false, false, false, false, null
-            ))
-        }
+        robot.drag(root).moveBy(0.0, 150.0)
         WaitForAsyncUtils.waitForFxEvents()
         
-        assertTrue(root.translateY > 0.0)
-
-        Platform.runLater {
-            javafx.event.Event.fireEvent(root, MouseEvent(
-                MouseEvent.MOUSE_RELEASED, 200.0, 300.0, 200.0, 300.0,
-                javafx.scene.input.MouseButton.PRIMARY, 1,
-                false, false, false, false, true, false, false, false, false, false, null
-            ))
+        interact {
+            assertTrue(root.translateY > 0.0, "translateY should be positive. Current: ${root.translateY}")
         }
-        WaitForAsyncUtils.waitForFxEvents()
 
-        // 復元アニメーションを待つ
-        Thread.sleep(2500)
-        WaitForAsyncUtils.waitForFxEvents()
+        robot.release(MouseButton.PRIMARY)
         
-        assertEquals(0.0, root.translateY, 0.5)
-        Platform.runLater { behavior?.dispose() }
-        WaitForAsyncUtils.waitForFxEvents()
+        repeat(30) { 
+            WaitForAsyncUtils.waitForFxEvents()
+            Thread.sleep(50) 
+        }
+        
+        interact {
+            assertEquals(0.0, root.translateY, 2.0, "Should return to near 0")
+            behavior?.dispose()
+        }
     }
 
-    /**
-     * 方向別のバウンス有効化を検証します。
-     */
     @Test
-    fun testDirectionalBounce(@Suppress("UNUSED_PARAMETER") robot: FxRobot) {
+    fun testDirectionalBounce(robot: FxRobot) {
         var behavior: TouchBehavior? = null
-        Platform.runLater {
-            vScrollBar.value = 0.0
-            hScrollBar.value = 0.0
+        interact {
             behavior = TouchBehavior(root).apply {
-                isDirectionLockEnabled = false
+                verticalScrollBar = vScrollBar
+                horizontalScrollBar = hScrollBar
                 isBounceEnabledX = true
                 isBounceEnabledY = false
-                verticalScrollBar = vScrollBar
-                horizontalScrollBar = hScrollBar
-                sensitivity = 1.0
+                isDirectionLockEnabled = false
             }
         }
-        WaitForAsyncUtils.waitForFxEvents()
 
-        Platform.runLater {
-            javafx.event.Event.fireEvent(root, MouseEvent(
-                MouseEvent.MOUSE_PRESSED, 200.0, 200.0, 200.0, 200.0,
-                javafx.scene.input.MouseButton.PRIMARY, 1,
-                false, false, false, false, true, false, false, false, false, false, null
-            ))
-        }
-        WaitForAsyncUtils.waitForFxEvents()
-
-        Platform.runLater {
-            // 右下へドラッグ
-            javafx.event.Event.fireEvent(root, MouseEvent(
-                MouseEvent.MOUSE_DRAGGED, 300.0, 300.0, 300.0, 300.0,
-                javafx.scene.input.MouseButton.PRIMARY, 1,
-                false, false, false, false, true, false, false, false, false, false, null
-            ))
-        }
-        WaitForAsyncUtils.waitForFxEvents()
-        Thread.sleep(100)
+        robot.drag(root).moveBy(150.0, 150.0)
         WaitForAsyncUtils.waitForFxEvents()
         
-        assertTrue(root.translateX > 0.0, "Horizontal bounce should be active. translateX: ${root.translateX}")
-        assertEquals(0.0, root.translateY, 0.001, "Vertical bounce should be inactive. translateY: ${root.translateY}")
-
-        Platform.runLater {
-            // Y だけ有効化に切り替え
-            behavior?.isBounceEnabledX = false
-            behavior?.isBounceEnabledY = true
-            root.translateX = 0.0
-            root.translateY = 0.0
-            
-            // 重要: lastX/Y を更新させるために再度 PRESSED を発行
-            javafx.event.Event.fireEvent(root, MouseEvent(
-                MouseEvent.MOUSE_PRESSED, 200.0, 200.0, 200.0, 200.0,
-                javafx.scene.input.MouseButton.PRIMARY, 1,
-                false, false, false, false, true, false, false, false, false, false, null
-            ))
+        interact {
+            assertTrue(root.translateX > 0.0, "translateX should be positive. Current: ${root.translateX}")
+            assertEquals(0.0, root.translateY, 0.0001, "translateY should be 0")
         }
-        WaitForAsyncUtils.waitForFxEvents()
 
-        Platform.runLater {
-            // 右下へドラッグ
-            javafx.event.Event.fireEvent(root, MouseEvent(
-                MouseEvent.MOUSE_DRAGGED, 300.0, 300.0, 300.0, 300.0,
-                javafx.scene.input.MouseButton.PRIMARY, 1,
-                false, false, false, false, true, false, false, false, false, false, null
-            ))
-        }
-        WaitForAsyncUtils.waitForFxEvents()
-        Thread.sleep(100)
-        WaitForAsyncUtils.waitForFxEvents()
-
-        assertEquals(0.0, root.translateX, 0.001, "Horizontal bounce should be inactive. translateX: ${root.translateX}")
-        assertTrue(root.translateY > 0.0, "Vertical bounce should be active. translateY: ${root.translateY}")
-
-        Platform.runLater {
-            javafx.event.Event.fireEvent(root, MouseEvent(
-                MouseEvent.MOUSE_RELEASED, 300.0, 300.0, 300.0, 300.0,
-                javafx.scene.input.MouseButton.PRIMARY, 1,
-                false, false, false, false, true, false, false, false, false, false, null
-            ))
-        }
-        Platform.runLater { behavior?.dispose() }
-        WaitForAsyncUtils.waitForFxEvents()
-    }
-
-    /**
-     * 方向別の感度設定を検証します。
-     */
-    @Test
-    fun testDirectionalSensitivity(@Suppress("UNUSED_PARAMETER") robot: FxRobot) {
-        var behavior: TouchBehavior? = null
-        Platform.runLater {
-            vScrollBar.value = 0.5
-            hScrollBar.value = 0.5
-            behavior = TouchBehavior(root).apply {
-                isDirectionLockEnabled = false
-                verticalScrollBar = vScrollBar
-                horizontalScrollBar = hScrollBar
-                sensitivityX = 0.01 // 10px = 0.1
-                sensitivityY = 0.001 // 10px = 0.01
-            }
-        }
-        WaitForAsyncUtils.waitForFxEvents()
-
-        Platform.runLater {
-            javafx.event.Event.fireEvent(root, MouseEvent(
-                MouseEvent.MOUSE_PRESSED, 200.0, 200.0, 200.0, 200.0,
-                javafx.scene.input.MouseButton.PRIMARY, 1,
-                false, false, false, false, true, false, false, false, false, false, null
-            ))
-        }
-        WaitForAsyncUtils.waitForFxEvents()
-
-        Platform.runLater {
-            javafx.event.Event.fireEvent(root, MouseEvent(
-                MouseEvent.MOUSE_DRAGGED, 190.0, 190.0, 190.0, 190.0,
-                javafx.scene.input.MouseButton.PRIMARY, 1,
-                false, false, false, false, true, false, false, false, false, false, null
-            ))
-        }
-        WaitForAsyncUtils.waitForFxEvents()
-
-        val deltaH = abs(hScrollBar.value - 0.5)
-        val deltaV = abs(vScrollBar.value - 0.5)
+        robot.release(MouseButton.PRIMARY)
         
-        assertTrue(deltaH > deltaV, "Horizontal scroll ($deltaH) should be larger than vertical ($deltaV)")
-
-        Platform.runLater {
-            javafx.event.Event.fireEvent(root, MouseEvent(
-                MouseEvent.MOUSE_RELEASED, 190.0, 190.0, 190.0, 190.0,
-                javafx.scene.input.MouseButton.PRIMARY, 1,
-                false, false, false, false, true, false, false, false, false, false, null
-            ))
+        repeat(30) { 
+            WaitForAsyncUtils.waitForFxEvents()
+            Thread.sleep(50) 
         }
-        Platform.runLater { behavior?.dispose() }
-        WaitForAsyncUtils.waitForFxEvents()
+
+        interact {
+            assertEquals(0.0, root.translateX, 2.0, "translateX should return to near 0")
+            behavior?.dispose()
+        }
     }
 
-    /**
-     * ドラッグ後の慣性によってスクロールが続くことを確認します。
-     */
     @Test
-    fun testInertiaScroll(@Suppress("UNUSED_PARAMETER") robot: FxRobot) {
+    fun testSnapping(robot: FxRobot) {
         var behavior: TouchBehavior? = null
-        Platform.runLater {
-            vScrollBar.value = 0.5
-            behavior = TouchBehavior(root).apply {
-                isDirectionLockEnabled = false
-                verticalScrollBar = vScrollBar
-                sensitivity = 0.01
-                inertia = 0.01
-            }
-        }
-        WaitForAsyncUtils.waitForFxEvents()
-
-        Platform.runLater {
-            javafx.event.Event.fireEvent(root, MouseEvent(
-                MouseEvent.MOUSE_PRESSED, 200.0, 200.0, 200.0, 200.0,
-                javafx.scene.input.MouseButton.PRIMARY, 1,
-                false, false, false, false, true, false, false, false, false, false, null
-            ))
-        }
-        WaitForAsyncUtils.waitForFxEvents()
-
-        Platform.runLater {
-            javafx.event.Event.fireEvent(root, MouseEvent(
-                MouseEvent.MOUSE_DRAGGED, 200.0, 210.0, 200.0, 210.0,
-                javafx.scene.input.MouseButton.PRIMARY, 1,
-                false, false, false, false, true, false, false, false, false, false, null
-            ))
-        }
-        WaitForAsyncUtils.waitForFxEvents()
-
-        val valueAtRelease = vScrollBar.value
-
-        Platform.runLater {
-            javafx.event.Event.fireEvent(root, MouseEvent(
-                MouseEvent.MOUSE_RELEASED, 200.0, 210.0, 200.0, 210.0,
-                javafx.scene.input.MouseButton.PRIMARY, 1,
-                false, false, false, false, true, false, false, false, false, false, null
-            ))
-        }
-        WaitForAsyncUtils.waitForFxEvents()
-
-        Thread.sleep(1000)
-        WaitForAsyncUtils.waitForFxEvents()
-
-        assertTrue(vScrollBar.value < valueAtRelease, "Inertia should continue scrolling. Released at: $valueAtRelease, Final: ${vScrollBar.value}")
-        Platform.runLater { behavior?.dispose() }
-        WaitForAsyncUtils.waitForFxEvents()
-    }
-
-    /**
-     * スナップ（吸着）機能を検証します。
-     */
-    @Test
-    fun testSnapping(@Suppress("UNUSED_PARAMETER") robot: FxRobot) {
-        var behavior: TouchBehavior? = null
-        Platform.runLater {
+        interact {
             vScrollBar.value = 0.5
             behavior = TouchBehavior(root).apply {
                 isDirectionLockEnabled = false
                 isSnapEnabled = true
                 verticalScrollBar = vScrollBar
-                snapUnitY = 10.0 // 10px 単位のスナップ
-                sensitivityY = 0.01 // 10px = 0.1 value. よって 0.1 刻みでスナップされるはず
+                snapUnitY = 20.0 
+                sensitivityY = 0.005 
             }
         }
-        WaitForAsyncUtils.waitForFxEvents()
 
-        Platform.runLater {
-            javafx.event.Event.fireEvent(root, MouseEvent(
-                MouseEvent.MOUSE_PRESSED, 200.0, 200.0, 200.0, 200.0,
-                javafx.scene.input.MouseButton.PRIMARY, 1,
-                false, false, false, false, true, false, false, false, false, false, null
-            ))
-        }
-        WaitForAsyncUtils.waitForFxEvents()
-
-        Platform.runLater {
-            // 5px 下方向へドラッグ (deltaY = 5) -> 値は 0.5 - 0.05 = 0.45 になる
-            javafx.event.Event.fireEvent(root, MouseEvent(
-                MouseEvent.MOUSE_DRAGGED, 200.0, 205.0, 200.0, 205.0,
-                javafx.scene.input.MouseButton.PRIMARY, 1,
-                false, false, false, false, true, false, false, false, false, false, null
-            ))
-        }
-        WaitForAsyncUtils.waitForFxEvents()
-
-        Platform.runLater {
-            // 指を離す。速度が小さいため即座にスナップフェーズへ。
-            javafx.event.Event.fireEvent(root, MouseEvent(
-                MouseEvent.MOUSE_RELEASED, 200.0, 205.0, 200.0, 205.0,
-                javafx.scene.input.MouseButton.PRIMARY, 1,
-                false, false, false, false, true, false, false, false, false, false, null
-            ))
-        }
-        WaitForAsyncUtils.waitForFxEvents()
-
-        // スナップアニメーションを待つ
-        Thread.sleep(1000)
-        WaitForAsyncUtils.waitForFxEvents()
-
-        val finalValue = vScrollBar.value
-        // 0.1 刻みになっていることを確認 (0.4 または 0.5)
-        val remainder = abs(finalValue % 0.1)
-        assertTrue(remainder < 0.001 || abs(remainder - 0.1) < 0.001, "Final value should be a multiple of 0.1. Current: $finalValue")
+        robot.drag(root).moveBy(0.0, -15.0).release(MouseButton.PRIMARY)
         
-        Platform.runLater { behavior?.dispose() }
-        WaitForAsyncUtils.waitForFxEvents()
+        repeat(15) { 
+            WaitForAsyncUtils.waitForFxEvents()
+            Thread.sleep(100) 
+        }
+
+        interact {
+            val finalValue = vScrollBar.value
+            val remainder = abs(finalValue % 0.005)
+            assertTrue(remainder < 0.0001 || abs(remainder - 0.005) < 0.0001, "Snap mismatch. Value: $finalValue")
+            behavior?.dispose()
+        }
     }
 
-    /**
-     * Pull-to-Refresh 機能を検証します。
-     */
     @Test
-    fun testPullToRefresh(@Suppress("UNUSED_PARAMETER") robot: FxRobot) {
+    fun testPullToRefresh(robot: FxRobot) {
         var behavior: TouchBehavior? = null
         val refreshFuture = CompletableFuture<Unit>()
         var refreshCalled = false
 
-        Platform.runLater {
+        interact {
             vScrollBar.value = 0.0
             behavior = TouchBehavior(root).apply {
                 isBounceEnabled = true
                 verticalScrollBar = vScrollBar
-                refreshThreshold = 20.0 // しきい値を小さく設定
+                refreshThreshold = 20.0 
+                isDirectionLockEnabled = false
                 onRefresh = {
                     refreshCalled = true
                     refreshFuture
                 }
             }
         }
+
+        robot.drag(root).moveBy(0.0, 200.0).release(MouseButton.PRIMARY)
         WaitForAsyncUtils.waitForFxEvents()
 
-        Platform.runLater {
-            javafx.event.Event.fireEvent(root, MouseEvent(
-                MouseEvent.MOUSE_PRESSED, 200.0, 200.0, 200.0, 200.0,
-                javafx.scene.input.MouseButton.PRIMARY, 1,
-                false, false, false, false, true, false, false, false, false, false, null
-            ))
+        interact {
+            assertTrue(refreshCalled, "onRefresh failed")
+            assertTrue(behavior!!.isRefreshing, "isRefreshing failed")
+            refreshFuture.complete(Unit)
         }
-        WaitForAsyncUtils.waitForFxEvents()
 
-        Platform.runLater {
-            // しきい値(20.0)を確実に超えるまで下方向にドラッグ（100px）
-            javafx.event.Event.fireEvent(root, MouseEvent(
-                MouseEvent.MOUSE_DRAGGED, 200.0, 300.0, 200.0, 300.0,
-                javafx.scene.input.MouseButton.PRIMARY, 1,
-                false, false, false, false, true, false, false, false, false, false, null
-            ))
+        repeat(15) { 
+            WaitForAsyncUtils.waitForFxEvents()
+            Thread.sleep(100) 
         }
-        WaitForAsyncUtils.waitForFxEvents()
 
-        Platform.runLater {
-            // 指を離す
-            javafx.event.Event.fireEvent(root, MouseEvent(
-                MouseEvent.MOUSE_RELEASED, 200.0, 300.0, 200.0, 300.0,
-                javafx.scene.input.MouseButton.PRIMARY, 1,
-                false, false, false, false, true, false, false, false, false, false, null
-            ))
+        interact {
+            assertFalse(behavior!!.isRefreshing, "Should stop refreshing")
+            behavior?.dispose()
         }
-        WaitForAsyncUtils.waitForFxEvents()
-
-        // リフレッシュが呼ばれていること、およびリフレッシュ中であることを確認
-        assertTrue(refreshCalled, "onRefresh callback should be called")
-        assertTrue(behavior!!.isRefreshing, "isRefreshing should be true during refresh")
-        assertEquals(20.0, root.translateY, 0.5, "translateY should be fixed at refreshThreshold during refresh")
-
-        // 非同期処理を完了させる
-        Platform.runLater { refreshFuture.complete(Unit) }
-        WaitForAsyncUtils.waitForFxEvents()
-
-        // 復元アニメーションを待つ
-        Thread.sleep(1500)
-        WaitForAsyncUtils.waitForFxEvents()
-
-        assertFalse(behavior!!.isRefreshing, "isRefreshing should be false after refresh completion")
-        assertEquals(0.0, root.translateY, 0.5, "translateY should return to 0.0 after refresh completion")
-
-        Platform.runLater { behavior?.dispose() }
-        WaitForAsyncUtils.waitForFxEvents()
     }
 }

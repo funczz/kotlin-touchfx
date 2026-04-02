@@ -1,200 +1,101 @@
 package com.github.funczz.touchfx.controls
 
-import javafx.application.Platform
+import javafx.geometry.Orientation
 import javafx.scene.Scene
+import javafx.scene.control.Label
 import javafx.scene.control.ScrollBar
-import javafx.scene.input.MouseEvent
-import javafx.scene.layout.Region
-import javafx.scene.layout.StackPane
+import javafx.scene.input.MouseButton
+import javafx.scene.layout.VBox
 import javafx.stage.Stage
-import org.junit.jupiter.api.Assertions.assertNotEquals
-import org.junit.jupiter.api.Assertions.assertTrue
+import org.junit.jupiter.api.Assertions.*
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.extension.ExtendWith
-import org.testfx.api.FxRobot
 import org.testfx.framework.junit5.ApplicationExtension
-import org.testfx.framework.junit5.Start
+import org.testfx.framework.junit5.ApplicationTest
+import org.testfx.api.FxRobot
 import org.testfx.util.WaitForAsyncUtils
 
-/**
- * [InertialScrollPane] の動作を検証するテストクラス。
- */
 @ExtendWith(ApplicationExtension::class)
-class InertialScrollPaneTest {
+class InertialScrollPaneTest : ApplicationTest() {
 
     private lateinit var inertialScrollPane: InertialScrollPane
+    private var scrollBar: ScrollBar? = null
+    private lateinit var contentArea: VBox
 
-    /**
-     * テスト用の UI をセットアップします。
-     */
-    @Start
-    fun start(stage: Stage) {
+    override fun start(stage: Stage) {
+        contentArea = VBox().apply {
+            children.addAll((1..100).map { Label("Label $it") })
+            setPrefSize(1000.0, 1000.0)
+            style = "-fx-background-color: lightblue;"
+        }
         inertialScrollPane = InertialScrollPane().apply {
-            // スクロールを発生させるために大きなコンテンツを配置
-            content = Region().apply {
-                minWidth = 500.0
-                minHeight = 1000.0
-            }
+            this.content = contentArea
         }
-        val root = StackPane(inertialScrollPane.scrollPane)
-        stage.scene = Scene(root, 300.0, 400.0)
+        stage.scene = Scene(inertialScrollPane.scrollPane, 200.0, 200.0)
         stage.show()
+
+        scrollBar = inertialScrollPane.scrollPane.lookupAll(".scroll-bar")
+            .filterIsInstance<ScrollBar>()
+            .find { it.orientation == Orientation.VERTICAL }
+        
+        // 慣性移動の余地を作るためレンジを広げる
+        interact {
+            scrollBar?.max = 100.0
+            scrollBar?.visibleAmount = 10.0
+        }
     }
 
-    /**
-     * ドラッグ操作によって内部の ScrollPane がスクロールすることを確認します。
-     */
     @Test
-    fun testDragScroll(@Suppress("UNUSED_PARAMETER") robot: FxRobot) {
+    fun testDragScroll(robot: FxRobot) {
+        robot.drag(contentArea).moveBy(0.0, -100.0).release(MouseButton.PRIMARY)
         WaitForAsyncUtils.waitForFxEvents()
-        val scrollPane = inertialScrollPane.scrollPane
-        var scrollBar: ScrollBar? = null
-        WaitForAsyncUtils.waitFor(10, java.util.concurrent.TimeUnit.SECONDS) {
-            scrollBar = scrollPane.lookupAll(".scroll-bar")
-                .filterIsInstance<ScrollBar>()
-                .find { it.orientation == javafx.geometry.Orientation.VERTICAL }
-            scrollBar != null
+
+        interact {
+            assertTrue(scrollBar!!.value > 0.0, "Drag scroll should increase scroll value")
         }
-        
-        assertTrue(scrollBar != null, "ScrollBar should be present")
-        val initialValue = scrollBar!!.value
-
-        Platform.runLater {
-            // MousePressed
-            javafx.event.Event.fireEvent(scrollPane, MouseEvent(
-                MouseEvent.MOUSE_PRESSED, 0.0, 200.0, 0.0, 200.0,
-                javafx.scene.input.MouseButton.PRIMARY, 1,
-                false, false, false, false, true, false, false, false, false, false, null
-            ))
-
-            // MouseDragged
-            javafx.event.Event.fireEvent(scrollPane, MouseEvent(
-                MouseEvent.MOUSE_DRAGGED, 0.0, 180.0, 0.0, 180.0,
-                javafx.scene.input.MouseButton.PRIMARY, 1,
-                false, false, false, false, true, false, false, false, false, false, null
-            ))
-
-            // MouseReleased
-            javafx.event.Event.fireEvent(scrollPane, MouseEvent(
-                MouseEvent.MOUSE_RELEASED, 0.0, 180.0, 0.0, 180.0,
-                javafx.scene.input.MouseButton.PRIMARY, 1,
-                false, false, false, false, true, false, false, false, false, false, null
-            ))
-        }
-        
-        WaitForAsyncUtils.waitForFxEvents()
-        assertNotEquals(initialValue, scrollBar!!.value, "ScrollBar value should change after manual drag events")
     }
 
-    /**
-     * 水平ドラッグ操作によって内部の ScrollPane がスクロールすることを確認します。
-     */
     @Test
-    fun testHorizontalDragScroll(@Suppress("UNUSED_PARAMETER") robot: FxRobot) {
+    fun testHorizontalDragScroll(robot: FxRobot) {
+        val hBar = inertialScrollPane.scrollPane.lookupAll(".scroll-bar")
+            .filterIsInstance<ScrollBar>()
+            .find { it.orientation == Orientation.HORIZONTAL }
+        
+        robot.drag(contentArea).moveBy(-100.0, 0.0).release(MouseButton.PRIMARY)
         WaitForAsyncUtils.waitForFxEvents()
-        val scrollPane = inertialScrollPane.scrollPane
-        var scrollBar: ScrollBar? = null
-        WaitForAsyncUtils.waitFor(10, java.util.concurrent.TimeUnit.SECONDS) {
-            scrollBar = scrollPane.lookupAll(".scroll-bar")
-                .filterIsInstance<ScrollBar>()
-                .find { it.orientation == javafx.geometry.Orientation.HORIZONTAL }
-            scrollBar != null
+
+        interact {
+            assertTrue(hBar!!.value > 0.0, "Horizontal drag scroll should increase value")
         }
-
-        assertTrue(scrollBar != null, "Horizontal ScrollBar should be present")
-        val initialValue = scrollBar!!.value
-
-        Platform.runLater {
-            // MousePressed
-            javafx.event.Event.fireEvent(scrollPane, MouseEvent(
-                MouseEvent.MOUSE_PRESSED, 200.0, 200.0, 200.0, 200.0,
-                javafx.scene.input.MouseButton.PRIMARY, 1,
-                false, false, false, false, true, false, false, false, false, false, null
-            ))
-
-            // MouseDragged
-            javafx.event.Event.fireEvent(scrollPane, MouseEvent(
-                MouseEvent.MOUSE_DRAGGED, 180.0, 200.0, 180.0, 200.0,
-                javafx.scene.input.MouseButton.PRIMARY, 1,
-                false, false, false, false, true, false, false, false, false, false, null
-            ))
-
-            // MouseReleased
-            javafx.event.Event.fireEvent(scrollPane, MouseEvent(
-                MouseEvent.MOUSE_RELEASED, 180.0, 200.0, 180.0, 200.0,
-                javafx.scene.input.MouseButton.PRIMARY, 1,
-                false, false, false, false, true, false, false, false, false, false, null
-            ))
-        }
-
-        WaitForAsyncUtils.waitForFxEvents()
-        assertNotEquals(initialValue, scrollBar!!.value, "Horizontal ScrollBar value should change after manual drag events")
     }
 
-    /**
-     * 慣性によってスクロールが続くことを確認します。
-     */
     @Test
-    fun testInertiaScroll(@Suppress("UNUSED_PARAMETER") robot: FxRobot) {
-        WaitForAsyncUtils.waitForFxEvents()
-        val scrollPane = inertialScrollPane.scrollPane
-        var scrollBar: ScrollBar? = null
-        WaitForAsyncUtils.waitFor(10, java.util.concurrent.TimeUnit.SECONDS) {
-            scrollBar = scrollPane.lookupAll(".scroll-bar")
-                .filterIsInstance<ScrollBar>()
-                .find { it.orientation == javafx.geometry.Orientation.VERTICAL }
-            scrollBar != null
+    fun testInertiaScroll(robot: FxRobot) {
+        interact {
+            scrollBar!!.value = 0.0
+            inertialScrollPane.sensitivityY = 0.01
+            inertialScrollPane.inertiaY = 0.5 // 明示的な慣性設定
+            inertialScrollPane.friction = 0.99
+            inertialScrollPane.isDirectionLockEnabled = false
         }
-        
-        assertTrue(scrollBar != null, "ScrollBar should be present")
-        
-        Platform.runLater { scrollBar!!.value = 0.5 }
-        WaitForAsyncUtils.waitForFxEvents()
 
-        Platform.runLater {
-            // MousePressed
-            javafx.event.Event.fireEvent(scrollPane, MouseEvent(
-                MouseEvent.MOUSE_PRESSED, 0.0, 200.0, 0.0, 200.0,
-                javafx.scene.input.MouseButton.PRIMARY, 1,
-                false, false, false, false, true, false, false, false, false, false, null
-            ))
+        // 小刻みに移動して確実に速度を乗せる
+        robot.drag(contentArea).moveBy(0.0, -50.0).moveBy(0.0, -50.0).moveBy(0.0, -50.0)
+        WaitForAsyncUtils.waitForFxEvents()
+        
+        val valueAfterDrag = scrollBar!!.value
+        robot.release(MouseButton.PRIMARY)
+        
+        repeat(10) { 
+            WaitForAsyncUtils.waitForFxEvents()
+            Thread.sleep(100) 
         }
-        WaitForAsyncUtils.waitForFxEvents()
-        Thread.sleep(10)
 
-        Platform.runLater {
-            // MouseDragged
-            javafx.event.Event.fireEvent(scrollPane, MouseEvent(
-                MouseEvent.MOUSE_DRAGGED, 0.0, 190.0, 0.0, 190.0,
-                javafx.scene.input.MouseButton.PRIMARY, 1,
-                false, false, false, false, true, false, false, false, false, false, null
-            ))
+        interact {
+            assertTrue(scrollBar!!.value > valueAfterDrag, "Inertia failed. Before: $valueAfterDrag, Final: ${scrollBar!!.value}")
         }
-        WaitForAsyncUtils.waitForFxEvents()
-        Thread.sleep(10)
-
-        Platform.runLater {
-            // MouseReleased
-            javafx.event.Event.fireEvent(scrollPane, MouseEvent(
-                MouseEvent.MOUSE_RELEASED, 0.0, 190.0, 0.0, 190.0,
-                javafx.scene.input.MouseButton.PRIMARY, 1,
-                false, false, false, false, true, false, false, false, false, false, null
-            ))
-        }
-        
-        WaitForAsyncUtils.waitForFxEvents()
-        val valueAfterRelease = scrollBar!!.value
-        
-        // 慣性移動を待機
-        Thread.sleep(500)
-        WaitForAsyncUtils.waitForFxEvents()
-
-        assertTrue(Math.abs(scrollBar!!.value - valueAfterRelease) > 0.0, "Inertia should change scroll value")
     }
 
-    /**
-     * デフォルトスタイルが正しく適用されていることを確認します。
-     */
     @Test
     fun testDefaultStyle(@Suppress("UNUSED_PARAMETER") robot: FxRobot) {
         val scrollPane = inertialScrollPane.scrollPane

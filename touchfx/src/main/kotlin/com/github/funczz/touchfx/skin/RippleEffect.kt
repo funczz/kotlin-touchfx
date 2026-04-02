@@ -1,122 +1,70 @@
 package com.github.funczz.touchfx.skin
 
-import javafx.animation.FadeTransition
-import javafx.animation.Interpolator
-import javafx.animation.ScaleTransition
+import javafx.animation.KeyFrame
+import javafx.animation.KeyValue
+import javafx.animation.Timeline
 import javafx.scene.Node
-import javafx.scene.Scene
 import javafx.scene.input.MouseEvent
 import javafx.scene.layout.Pane
 import javafx.scene.paint.Color
 import javafx.scene.shape.Circle
 import javafx.scene.shape.Rectangle
 import javafx.util.Duration
-import java.util.WeakHashMap
+import kotlin.math.max
+import kotlin.math.sqrt
 
 /**
- * ノードに対してタップ時の波紋効果 (Ripple Effect) を提供するユーティリティです。
- * Scene 全体でイベントを監視し、対象ノードがタップされた際に波紋を表示します。
+ * ノードに対して波紋効果（Ripple Effect）を付与するユーティリティ。
  */
 object RippleEffect {
 
-    private val enabledNodes = WeakHashMap<Node, RippleConfig>()
-    private val sceneFilters = WeakHashMap<Scene, Boolean>()
-
-    private data class RippleConfig(val color: Color, val duration: Duration)
+    private const val RIPPLE_APPLIED_KEY = "touchfx-ripple-applied"
 
     /**
      * 指定されたノードに波紋効果を適用します。
+     * ノードは [Pane] である必要があります。
      */
-    fun apply(
-        node: Node,
-        color: Color = Color.color(0.0, 0.0, 0.0, 0.15),
-        duration: Duration = Duration.millis(500.0)
-    ) {
-        enabledNodes[node] = RippleConfig(color, duration)
+    fun apply(node: Node) {
+        if (node.properties.containsKey(RIPPLE_APPLIED_KEY)) return
+        val pane = node as? Pane ?: return
         
-        // ノードがシーンに追加されたら、シーンにフィルタを登録する
-        if (node.scene != null) {
-            registerSceneFilter(node.scene)
-        }
-        node.sceneProperty().addListener { _, _, newScene ->
-            if (newScene != null) {
-                registerSceneFilter(newScene)
+        // 子要素での消費に関わらず確実に開始
+        pane.addEventFilter(MouseEvent.MOUSE_PRESSED) { event ->
+            val ripple = Circle(0.0, Color.rgb(0, 0, 0, 0.15)).apply {
+                isMouseTransparent = true
+                // レイアウト計算から除外することで、親（セル）のサイズに影響を与えない
+                isManaged = false
+                centerX = event.x
+                centerY = event.y
+                
+                val clipRect = Rectangle()
+                clipRect.widthProperty().bind(pane.widthProperty())
+                clipRect.heightProperty().bind(pane.heightProperty())
+                this.clip = clipRect
             }
-        }
-    }
-
-    private fun registerSceneFilter(scene: Scene) {
-        if (sceneFilters.containsKey(scene)) return
-        sceneFilters[scene] = true
-
-        scene.addEventFilter(MouseEvent.MOUSE_PRESSED) { event ->
-            val target = event.target as? Node ?: return@addEventFilter
             
-            // クリックされたノード、またはその親のいずれかが登録されているか確認
-            var current: Node? = target
-            var foundNode: Node? = null
-            var config: RippleConfig? = null
+            pane.children.add(ripple)
             
-            while (current != null) {
-                config = enabledNodes[current]
-                if (config != null) {
-                    foundNode = current
-                    break
-                }
-                current = current.parent
+            val maxDist = sqrt(max(pane.width, pane.height).let { it * it * 2 })
+            val endRadius = maxDist * 1.2
+            
+            val timeline = Timeline(
+                KeyFrame(Duration.ZERO, 
+                    KeyValue(ripple.radiusProperty(), 0.0),
+                    KeyValue(ripple.opacityProperty(), 1.0)
+                ),
+                KeyFrame(Duration.millis(500.0), 
+                    KeyValue(ripple.radiusProperty(), endRadius),
+                    KeyValue(ripple.opacityProperty(), 0.0)
+                )
+            )
+            
+            timeline.setOnFinished {
+                pane.children.remove(ripple)
             }
-
-            if (foundNode != null && config != null) {
-                showRipple(scene, foundNode, event.sceneX, event.sceneY, config)
-            }
+            timeline.play()
         }
-    }
-
-    private fun showRipple(scene: Scene, node: Node, sceneX: Double, sceneY: Double, config: RippleConfig) {
-        val root = scene.root as? Pane ?: return
-        val nodeBounds = node.localToScene(node.layoutBounds)
         
-        val ripple = Circle(2.0, config.color)
-        ripple.isMouseTransparent = true
-        
-        // シーンのルートにおける絶対座標
-        ripple.translateX = sceneX
-        ripple.translateY = sceneY
-        
-        // クリップの設定
-        val clipRect = Rectangle(
-            nodeBounds.minX - sceneX,
-            nodeBounds.minY - sceneY,
-            nodeBounds.width,
-            nodeBounds.height
-        )
-        clipRect.translateX = -ripple.radius
-        clipRect.translateY = -ripple.radius
-        ripple.clip = clipRect
-        
-        val maxRadius = Math.sqrt(
-            Math.pow(nodeBounds.width, 2.0) + Math.pow(nodeBounds.height, 2.0)
-        ) * 1.5
-
-        val scale = ScaleTransition(config.duration, ripple)
-        scale.fromX = 1.0
-        scale.fromY = 1.0
-        scale.toX = maxRadius / 2.0
-        scale.toY = maxRadius / 2.0
-        scale.interpolator = Interpolator.EASE_OUT
-
-        val fade = FadeTransition(config.duration, ripple)
-        fade.fromValue = 1.0
-        fade.toValue = 0.0
-        fade.interpolator = Interpolator.EASE_OUT
-        fade.setOnFinished { 
-            root.children.remove(ripple)
-        }
-
-        root.children.add(ripple)
-        ripple.toFront()
-        
-        scale.play()
-        fade.play()
+        node.properties[RIPPLE_APPLIED_KEY] = true
     }
 }

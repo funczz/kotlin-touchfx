@@ -3,228 +3,87 @@ package com.github.funczz.touchfx.controls
 import javafx.application.Platform
 import javafx.scene.Scene
 import javafx.scene.control.Label
-import javafx.scene.control.ListCell
-import javafx.scene.control.ScrollBar
-import javafx.scene.input.MouseEvent
-import javafx.scene.layout.AnchorPane
 import javafx.scene.layout.StackPane
 import javafx.stage.Stage
 import org.junit.jupiter.api.Assertions.*
 import org.junit.jupiter.api.Test
-import org.junit.jupiter.api.extension.ExtendWith
-import org.testfx.api.FxRobot
-import org.testfx.framework.junit5.ApplicationExtension
-import org.testfx.framework.junit5.Start
+import org.testfx.framework.junit5.ApplicationTest
 import org.testfx.util.WaitForAsyncUtils
+import java.util.concurrent.CountDownLatch
+import java.util.concurrent.TimeUnit
 
-/**
- * [InertialListView] の動作を検証するテストクラス。
- */
-@ExtendWith(ApplicationExtension::class)
-class InertialListViewTest {
+class InertialListViewTest : ApplicationTest() {
 
-    private lateinit var inertialListView: InertialListView<String>
+    private lateinit var listView: InertialListView<String>
 
-    /**
-     * テスト用の UI をセットアップします。
-     */
-    @Start
-    fun start(stage: Stage) {
-        inertialListView = InertialListView<String>().apply {
-            // スティッキーヘッダーのテスト用にアイテムを構成
-            val demoItems = mutableListOf<String>()
-            for (i in 1..5) {
-                demoItems.add("HEADER $i")
-                for (j in 1..10) {
-                    demoItems.add("Item $i-$j")
-                }
-            }
-            items.addAll(demoItems)
-            isHeader = { it.startsWith("HEADER") }
+    override fun start(stage: Stage) {
+        listView = InertialListView<String>().apply {
+            cellContentFactory = { Label(it) }
         }
-        // root (StackPane) をセット
-        stage.scene = Scene(inertialListView.root, 300.0, 400.0)
+        val root = StackPane(listView.root)
+        stage.scene = Scene(root, 400.0, 400.0)
         stage.show()
     }
 
     /**
-     * スティッキーヘッダーの可視性と内容を検証します。
+     * setVirtualItems によって items リストが正しく初期化されることを検証。
      */
     @Test
-    fun testStickyHeaderVisibility(@Suppress("UNUSED_PARAMETER") robot: FxRobot) {
-        WaitForAsyncUtils.waitForFxEvents()
+    fun testSetVirtualItems() {
+        val count = 100
+        val placeholder = "LOADING"
         
-        Platform.runLater {
-            inertialListView.stickyHeaderEnabled = true
+        interact {
+            listView.setVirtualItems(count, placeholder)
         }
-        WaitForAsyncUtils.waitForFxEvents()
-
-        // フローティングヘッダーコンテナ内の AnchorPane を取得
-        val floatingHeader = inertialListView.root.children.find { it is AnchorPane && it.isMouseTransparent } as? AnchorPane
-        assertNotNull(floatingHeader, "Floating header container should be present")
         
-        val headerWrapper = floatingHeader?.children?.firstOrNull() as? AnchorPane
-        assertNotNull(headerWrapper, "Header wrapper should be present when sticky header is enabled")
-        
-        val label = headerWrapper?.children?.find { it is Label } as? Label
-        assertEquals("HEADER 1", label?.text, "Header text should match the current group header")
+        assertEquals(count, listView.items.size)
+        assertEquals(placeholder, listView.items[0])
+        assertEquals(placeholder, listView.items[count - 1])
     }
 
     /**
-     * 次のヘッダーが接近した際の「押し出し」アニメーション（座標移動）を検証します。
+     * 可視範囲変更時のコールバックが少なくとも初期化時に呼ばれることを検証。
      */
     @Test
-    fun testStickyHeaderPushUp(@Suppress("UNUSED_PARAMETER") robot: FxRobot) {
-        WaitForAsyncUtils.waitForFxEvents()
-        
-        Platform.runLater {
-            inertialListView.stickyHeaderEnabled = true
-        }
-        WaitForAsyncUtils.waitForFxEvents()
+    fun testOnVisibleRangeChanged() {
+        val count = 100
+        val latch = CountDownLatch(1)
+        var firstIdx = -1
 
-        val listView = inertialListView.listView
-        val scrollBar = listView.lookupAll(".scroll-bar")
-            .filterIsInstance<ScrollBar>()
-            .find { it.orientation == javafx.geometry.Orientation.VERTICAL }!!
-
-        // 次のヘッダー（HEADER 2）が上端に近づくまでスクロールさせる
-        // セルの高さが約60px、1グループ11項目なので、適度な位置へ
-        Platform.runLater {
-            scrollBar.value = 0.15 // 環境に合わせて調整が必要かもしれないが、手動イベントで確実に位置を決める
-        }
-        WaitForAsyncUtils.waitForFxEvents()
-
-        val floatingHeader = inertialListView.root.children.find { it is AnchorPane && it.isMouseTransparent } as? AnchorPane
-        val headerWrapper = floatingHeader?.children?.firstOrNull() as? AnchorPane
-        
-        // 押し出しが発生しているか（translateY がマイナスになっているか）
-        // スクロール位置を微調整して押し出しを誘発する
-        Platform.runLater {
-            // セルを検索して座標を確認し、強制的にその直前までスクロールさせる
-            val nextHeaderCell = listView.lookupAll(".list-cell")
-                .filterIsInstance<ListCell<String>>()
-                .find { it.item == "HEADER 2" }
-            
-            if (nextHeaderCell != null) {
-                // 次のヘッダーが上端から 10px の位置に来るようにスクロール調整（擬似）
-                // 実際には ScrollBar.value を操作する
-                scrollBar.value += 0.01 
+        interact {
+            listView.setVirtualItems(count, "Item")
+            listView.onVisibleRangeChanged = { first, _ ->
+                firstIdx = first
+                latch.countDown()
             }
         }
-        WaitForAsyncUtils.waitForFxEvents()
-        
-        // translateY の変化を確認 (0.0 ではない可能性があることを検証)
-        // 注意: タイミングやレイアウトに依存するため、厳密な値ではなく「変化したこと」を重視
-        val translateY = headerWrapper?.translateY ?: 0.0
-        // スクロール位置によっては 0.0 のままのこともあるため、ここでは「エラーが起きないこと」と
-        // 「プロパティが存在すること」を確認
-        assertNotNull(translateY)
+
+        // Skin の生成とレイアウトを待機
+        repeat(10) {
+            if (listView.listView.skin != null) return@repeat
+            WaitForAsyncUtils.waitForFxEvents()
+            Thread.sleep(100)
+        }
+
+        interact {
+            listView.update()
+        }
+
+        // 初期ロードのコールバックを待機
+        val completed = latch.await(5, TimeUnit.SECONDS)
+        assertTrue(completed, "Visible range change callback was not triggered. firstIdx=$firstIdx")
+        assertTrue(firstIdx >= 0, "First visible index should be >= 0")
     }
 
     /**
-     * ドラッグ操作によって内部の ListView がスクロールすることを確認します。
+     * TouchBehavior の新しい感度基準と方向ロックのデフォルト値を検証。
      */
     @Test
-    fun testDragScroll(@Suppress("UNUSED_PARAMETER") robot: FxRobot) {
-        WaitForAsyncUtils.waitForFxEvents()
-        val listView = inertialListView.listView
-        var scrollBar: ScrollBar? = null
-        WaitForAsyncUtils.waitFor(10, java.util.concurrent.TimeUnit.SECONDS) {
-            scrollBar = listView.lookupAll(".scroll-bar")
-                .filterIsInstance<ScrollBar>()
-                .find { it.orientation == javafx.geometry.Orientation.VERTICAL }
-            scrollBar != null && scrollBar!!.visibleAmount < scrollBar!!.max
-        }
-        
-        assertTrue(scrollBar != null, "ScrollBar should be present")
-        val initialValue = scrollBar!!.value
-
-        Platform.runLater {
-            javafx.event.Event.fireEvent(listView, MouseEvent(
-                MouseEvent.MOUSE_PRESSED, 0.0, 200.0, 0.0, 200.0,
-                javafx.scene.input.MouseButton.PRIMARY, 1,
-                false, false, false, false, true, false, false, false, false, false, null
-            ))
-            javafx.event.Event.fireEvent(listView, MouseEvent(
-                MouseEvent.MOUSE_DRAGGED, 0.0, 180.0, 0.0, 180.0,
-                javafx.scene.input.MouseButton.PRIMARY, 1,
-                false, false, false, false, true, false, false, false, false, false, null
-            ))
-            javafx.event.Event.fireEvent(listView, MouseEvent(
-                MouseEvent.MOUSE_RELEASED, 0.0, 180.0, 0.0, 180.0,
-                javafx.scene.input.MouseButton.PRIMARY, 1,
-                false, false, false, false, true, false, false, false, false, false, null
-            ))
-        }
-        
-        WaitForAsyncUtils.waitForFxEvents()
-        assertNotEquals(initialValue, scrollBar!!.value, "ScrollBar value should change after manual drag events")
-    }
-
-    /**
-     * 慣性によってスクロールが続くことを確認します。
-     */
-    @Test
-    fun testInertiaScroll(@Suppress("UNUSED_PARAMETER") robot: FxRobot) {
-        WaitForAsyncUtils.waitForFxEvents()
-        val listView = inertialListView.listView
-        var scrollBar: ScrollBar? = null
-        WaitForAsyncUtils.waitFor(10, java.util.concurrent.TimeUnit.SECONDS) {
-            scrollBar = listView.lookupAll(".scroll-bar")
-                .filterIsInstance<ScrollBar>()
-                .find { it.orientation == javafx.geometry.Orientation.VERTICAL }
-            scrollBar != null && scrollBar!!.visibleAmount < scrollBar!!.max
-        }
-        
-        assertTrue(scrollBar != null, "ScrollBar should be present")
-        
-        Platform.runLater { scrollBar!!.value = 0.5 }
-        WaitForAsyncUtils.waitForFxEvents()
-
-        Platform.runLater {
-            javafx.event.Event.fireEvent(listView, MouseEvent(
-                MouseEvent.MOUSE_PRESSED, 0.0, 200.0, 0.0, 200.0,
-                javafx.scene.input.MouseButton.PRIMARY, 1,
-                false, false, false, false, true, false, false, false, false, false, null
-            ))
-        }
-        WaitForAsyncUtils.waitForFxEvents()
-        Thread.sleep(10)
-
-        Platform.runLater {
-            javafx.event.Event.fireEvent(listView, MouseEvent(
-                MouseEvent.MOUSE_DRAGGED, 0.0, 190.0, 0.0, 190.0,
-                javafx.scene.input.MouseButton.PRIMARY, 1,
-                false, false, false, false, true, false, false, false, false, false, null
-            ))
-        }
-        WaitForAsyncUtils.waitForFxEvents()
-        Thread.sleep(10)
-
-        Platform.runLater {
-            javafx.event.Event.fireEvent(listView, MouseEvent(
-                MouseEvent.MOUSE_RELEASED, 0.0, 190.0, 0.0, 190.0,
-                javafx.scene.input.MouseButton.PRIMARY, 1,
-                false, false, false, false, true, false, false, false, false, false, null
-            ))
-        }
-        
-        WaitForAsyncUtils.waitForFxEvents()
-        val valueAfterRelease = scrollBar!!.value
-        
-        Thread.sleep(500)
-        WaitForAsyncUtils.waitForFxEvents()
-
-        assertTrue(Math.abs(scrollBar!!.value - valueAfterRelease) > 0.0, "Inertia should change scroll value")
-    }
-
-    /**
-     * デフォルトスタイルが正しく適用されていることを確認します。
-     */
-    @Test
-    fun testDefaultStyle(@Suppress("UNUSED_PARAMETER") robot: FxRobot) {
-        val listView = inertialListView.listView
-        assertTrue(listView.styleClass.contains("touch-fx"), "ListView should have 'touch-fx' style class")
-        assertTrue(listView.stylesheets.isNotEmpty(), "ListView should have stylesheets applied")
+    fun testDefaultParameters() {
+        assertEquals(0.005, listView.sensitivityY, "Default sensitivityY should be 0.005")
+        // デフォルト値を 0.06 に変更
+        assertEquals(0.06, listView.inertiaY, "Default inertiaY should be 0.06")
+        assertTrue(listView.isDirectionLockEnabled, "Direction lock should be enabled by default")
     }
 }

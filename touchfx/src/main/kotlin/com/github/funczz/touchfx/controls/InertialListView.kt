@@ -3,7 +3,6 @@ package com.github.funczz.touchfx.controls
 import com.github.funczz.touchfx.TouchFX
 import com.github.funczz.touchfx.behavior.TouchBehavior
 import com.github.funczz.touchfx.skin.RippleEffect
-import javafx.animation.AnimationTimer
 import javafx.application.Platform
 import javafx.collections.FXCollections
 import javafx.collections.ObservableList
@@ -16,6 +15,7 @@ import javafx.scene.control.ScrollBar
 import javafx.scene.control.skin.ListViewSkin
 import javafx.scene.control.skin.VirtualFlow
 import javafx.scene.layout.AnchorPane
+import javafx.scene.layout.Region
 import javafx.scene.layout.StackPane
 
 /**
@@ -90,14 +90,7 @@ class InertialListView<T>(
     private var lastFirstVisible: Int = -1
     private var lastLastVisible: Int = -1
     private var lastUpdateTime: Long = 0L
-    private val updateIntervalThreshold = 50_000_000L
-
-    private val visibilityTimer = object : AnimationTimer() {
-        override fun handle(now: Long) {
-            updateVisibleRange()
-            if (stickyHeaderEnabled) updateStickyHeader()
-        }
-    }
+    private val updateIntervalThreshold = 50_000_000L // 50ms
 
     init {
         if (useDefaultStyle) {
@@ -107,8 +100,6 @@ class InertialListView<T>(
             listView.styleClass.add("touch-fx")
         }
         updateCellFactory()
-
-        visibilityTimer.start()
 
         Platform.runLater {
             findVerticalScrollBar()?.let { scrollBar ->
@@ -176,15 +167,23 @@ class InertialListView<T>(
                             styleClass.add("label")
                         }
 
+                        val rippleWrapper = StackPane(content).apply {
+                            maxWidth = Double.MAX_VALUE
+                            maxHeight = Region.USE_PREF_SIZE
+                            alignment = Pos.CENTER_LEFT
+                            style = "-fx-background-color: transparent;"
+                            isPickOnBounds = true
+                        }
+
                         if (swipeLeftFactory != null || swipeRightFactory != null) {
-                            val wrapper = AnchorPane(content).apply {
+                            val swipeContent = AnchorPane(rippleWrapper).apply {
                                 style = "-fx-background-color: white;"
-                                AnchorPane.setTopAnchor(content, 0.0)
-                                AnchorPane.setBottomAnchor(content, 0.0)
-                                AnchorPane.setLeftAnchor(content, 10.0)
-                                AnchorPane.setRightAnchor(content, 10.0)
+                                // 垂直方向に伸びるのを防ぐため、BottomAnchor は設定しない
+                                AnchorPane.setTopAnchor(rippleWrapper, 0.0)
+                                AnchorPane.setLeftAnchor(rippleWrapper, 10.0)
+                                AnchorPane.setRightAnchor(rippleWrapper, 10.0)
                             }
-                            val sContainer = SwipeableContainer(wrapper).apply {
+                            val sContainer = SwipeableContainer(swipeContent).apply {
                                 threshold = swipeThreshold
                             }
                             val leftNode = swipeLeftFactory?.invoke(item, sContainer)
@@ -195,16 +194,16 @@ class InertialListView<T>(
                                 graphic = sContainer
                                 text = null
                             } else {
-                                graphic = content
+                                graphic = swipeContent
                                 text = null
                             }
                         } else {
-                            graphic = content
+                            graphic = rippleWrapper
                             text = null
                         }
 
                         if (isRippleEnabled) {
-                            RippleEffect.apply(this)
+                            RippleEffect.apply(rippleWrapper)
                         }
                     }
                 }
@@ -213,17 +212,10 @@ class InertialListView<T>(
     }
 
     private fun updateStickyHeader() {
-        val visibleCells = listView.lookupAll(".list-cell")
-            .filterIsInstance<ListCell<T>>()
-            .filter { it.item != null && it.isVisible }
-            .sortedBy { it.layoutY }
-
-        if (visibleCells.isEmpty()) {
-            floatingHeaderContainer.children.clear()
-            return
-        }
-
-        val firstCell = visibleCells.first()
+        val skin = listView.skin as? ListViewSkin<T> ?: return
+        val flow = skin.children.find { it is VirtualFlow<*> } as? VirtualFlow<*> ?: return
+        
+        val firstCell = flow.firstVisibleCell as? ListCell<T> ?: return
         val firstIndex = firstCell.index
         
         var currentHeaderItem: T? = null
@@ -253,6 +245,11 @@ class InertialListView<T>(
         }
 
         floatingHeaderContainer.children.setAll(headerWrapper)
+
+        val visibleCells = listView.lookupAll(".list-cell")
+            .filterIsInstance<ListCell<T>>()
+            .filter { it.item != null && it.isVisible }
+            .sortedBy { it.layoutY }
 
         val nextHeaderCell = visibleCells.drop(1).find { isHeader(it.item) }
         if (nextHeaderCell != null) {
@@ -396,7 +393,6 @@ class InertialListView<T>(
         }
 
     fun dispose() {
-        visibilityTimer.stop()
         behavior.dispose()
     }
 }

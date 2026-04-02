@@ -16,10 +16,10 @@ import kotlin.math.round
  */
 class TouchBehavior(private val node: Node) {
 
-    var sensitivityX: Double = 1.0
-    var sensitivityY: Double = 1.0
-    var inertiaX: Double = 0.05
-    var inertiaY: Double = 0.05
+    var sensitivityX: Double = 0.005
+    var sensitivityY: Double = 0.005
+    var inertiaX: Double = 0.06 // コントロールパネルで 1/3 辺りになるように調整
+    var inertiaY: Double = 0.06 // コントロールパネルで 1/3 辺りになるように調整
     var friction: Double = 0.92
     var isDirectionLockEnabled: Boolean = true
     var isDynamicScrollBarVisible: Boolean = false
@@ -32,8 +32,9 @@ class TouchBehavior(private val node: Node) {
         get() = (sensitivityX + sensitivityY) / 2.0
         set(value) { sensitivityX = value; sensitivityY = value }
 
-    var inertia: Double = 0.05
-        set(value) { field = value; inertiaX = value; inertiaY = value }
+    var inertia: Double
+        get() = (inertiaX + inertiaY) / 2.0
+        set(value) { inertiaX = value; inertiaY = value }
 
     var isBounceEnabledX: Boolean = false
         set(value) { field = value; if (!value) bounceX = 0.0; applyBounceTranslation() }
@@ -80,10 +81,10 @@ class TouchBehavior(private val node: Node) {
 
     private val inertiaTimer = object : AnimationTimer() {
         override fun handle(now: Long) {
-            val isRestoringX = abs(bounceX) > 0.1
-            val isRestoringY = abs(bounceY) > 0.1
-            val isMovingX = abs(velocityX) > 0.1
-            val isMovingY = abs(velocityY) > 0.1
+            val isRestoringX = abs(bounceX) > 0.05
+            val isRestoringY = abs(bounceY) > 0.05
+            val isMovingX = abs(velocityX) > 0.05
+            val isMovingY = abs(velocityY) > 0.05
             val snapTargetX = if (isSnapEnabled && snapUnitX > 0.0 && !isMovingX) calculateSnapTarget(Orientation.HORIZONTAL) else null
             val snapTargetY = if (isSnapEnabled && snapUnitY > 0.0 && !isMovingY) calculateSnapTarget(Orientation.VERTICAL) else null
             val isSnappingX = snapTargetX != null && abs((findHorizontalScrollBarInternal()?.value ?: 0.0) - snapTargetX) > 0.0001
@@ -98,7 +99,8 @@ class TouchBehavior(private val node: Node) {
             if (lockOrientation == null || lockOrientation == Orientation.VERTICAL) {
                 findVerticalScrollBarInternal()?.let { scrollBar ->
                     if (isMovingY) {
-                        val scale = getEffectiveScale(scrollBar, Orientation.VERTICAL)
+                        // 慣性には感度補正係数(200.0)を掛けない生のスケーリングを適用
+                        val scale = getRawScale(scrollBar, Orientation.VERTICAL)
                         val scrollDelta = velocityY * inertiaY * scale
                         scrollBar.value = (scrollBar.value - scrollDelta).coerceIn(scrollBar.min, scrollBar.max)
                         if (isBounceEnabledY && (scrollBar.value <= scrollBar.min || scrollBar.value >= scrollBar.max)) {
@@ -113,7 +115,7 @@ class TouchBehavior(private val node: Node) {
             if (lockOrientation == null || lockOrientation == Orientation.HORIZONTAL) {
                 findHorizontalScrollBarInternal()?.let { scrollBar ->
                     if (isMovingX) {
-                        val scale = getEffectiveScale(scrollBar, Orientation.HORIZONTAL)
+                        val scale = getRawScale(scrollBar, Orientation.HORIZONTAL)
                         val scrollDelta = velocityX * inertiaX * scale
                         scrollBar.value = (scrollBar.value - scrollDelta).coerceIn(scrollBar.min, scrollBar.max)
                         if (isBounceEnabledX && (scrollBar.value <= scrollBar.min || scrollBar.value >= scrollBar.max)) {
@@ -152,10 +154,11 @@ class TouchBehavior(private val node: Node) {
     }
 
     private fun isEventOnScrollBar(event: MouseEvent): Boolean {
-        var target = event.target as? Node
-        while (target != null) {
-            if (target is ScrollBar) return true
-            target = target.parent
+        var current = event.target as? Node
+        while (current != null) {
+            if (current is ScrollBar) return true
+            if (current == node) break
+            current = current.parent
         }
         return false
     }
@@ -246,10 +249,15 @@ class TouchBehavior(private val node: Node) {
         inertiaTimer.start()
     }
 
-    private fun getEffectiveScale(scrollBar: ScrollBar, orientation: Orientation): Double {
+    private fun getRawScale(scrollBar: ScrollBar, orientation: Orientation): Double {
         val viewportSize = if (orientation == Orientation.VERTICAL) (node as? Region)?.height ?: 1.0 else (node as? Region)?.width ?: 1.0
         val amount = if (scrollBar.visibleAmount > 0.0) scrollBar.visibleAmount else 1.0
         return amount / viewportSize
+    }
+
+    private fun getEffectiveScale(scrollBar: ScrollBar, orientation: Orientation): Double {
+        // 感度 0.005 が基準（1:1）になるように係数 200.0 を適用。
+        return getRawScale(scrollBar, orientation) * 200.0
     }
 
     private fun findVerticalScrollBarInternal(): ScrollBar? {
