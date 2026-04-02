@@ -82,7 +82,7 @@ class TouchBehaviorTest : ApplicationTest() {
             behavior = TouchBehavior(root).apply {
                 verticalScrollBar = vScrollBar
                 isDirectionLockEnabled = false
-                inertiaY = 0.5 // 明示的な慣性設定
+                inertiaY = 0.5 
                 friction = 0.99
             }
         }
@@ -158,6 +158,33 @@ class TouchBehaviorTest : ApplicationTest() {
             assertEquals(0.0, root.translateY, 2.0, "Should return to near 0")
             behavior?.dispose()
         }
+    }
+
+    @Test
+    fun testBounceRangeLimit(robot: FxRobot) {
+        var behavior: TouchBehavior? = null
+        val limit = 50.0
+        interact {
+            vScrollBar.value = 0.0
+            behavior = TouchBehavior(root).apply {
+                verticalScrollBar = vScrollBar
+                isBounceEnabledY = true
+                isDirectionLockEnabled = false
+                bounceMaxRangeY = limit
+            }
+        }
+
+        // 上限を大幅に超えるドラッグ (150px)
+        robot.drag(root).moveBy(0.0, 150.0)
+        WaitForAsyncUtils.waitForFxEvents()
+        
+        interact {
+            // 設定した 50.0 で止まっているはず
+            assertEquals(limit, root.translateY, 0.0001, "translateY should be clamped to $limit")
+        }
+
+        robot.release(MouseButton.PRIMARY)
+        interact { behavior?.dispose() }
     }
 
     @Test

@@ -178,7 +178,6 @@ class InertialListView<T>(
                         if (swipeLeftFactory != null || swipeRightFactory != null) {
                             val swipeContent = AnchorPane(rippleWrapper).apply {
                                 style = "-fx-background-color: white;"
-                                // 垂直方向に伸びるのを防ぐため、BottomAnchor は設定しない
                                 AnchorPane.setTopAnchor(rippleWrapper, 0.0)
                                 AnchorPane.setLeftAnchor(rippleWrapper, 10.0)
                                 AnchorPane.setRightAnchor(rippleWrapper, 10.0)
@@ -345,6 +344,18 @@ class InertialListView<T>(
         get() = behavior.isBounceEnabledY
         set(value) {
             behavior.isBounceEnabledY = value
+        }
+
+    var bounceMaxRangeX: Double
+        get() = behavior.bounceMaxRangeX
+        set(value) {
+            behavior.bounceMaxRangeX = value
+        }
+
+    var bounceMaxRangeY: Double
+        get() = behavior.bounceMaxRangeY
+        set(value) {
+            behavior.bounceMaxRangeY = value
         }
 
     var isSnapEnabled: Boolean

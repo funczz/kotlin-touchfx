@@ -18,8 +18,8 @@ class TouchBehavior(private val node: Node) {
 
     var sensitivityX: Double = 0.005
     var sensitivityY: Double = 0.005
-    var inertiaX: Double = 0.06 // コントロールパネルで 1/3 辺りになるように調整
-    var inertiaY: Double = 0.06 // コントロールパネルで 1/3 辺りになるように調整
+    var inertiaX: Double = 0.06
+    var inertiaY: Double = 0.06
     var friction: Double = 0.92
     var isDirectionLockEnabled: Boolean = true
     var isDynamicScrollBarVisible: Boolean = false
@@ -43,6 +43,11 @@ class TouchBehavior(private val node: Node) {
     var isBounceEnabled: Boolean
         get() = isBounceEnabledX && isBounceEnabledY
         set(value) { isBounceEnabledX = value; isBounceEnabledY = value }
+
+    /** Bounce Effect の水平方向の最大移動距離（ピクセル）。デフォルトは無制限。 */
+    var bounceMaxRangeX: Double = Double.MAX_VALUE
+    /** Bounce Effect の垂直方向の最大移動距離（ピクセル）。デフォルトは無制限。 */
+    var bounceMaxRangeY: Double = Double.MAX_VALUE
 
     var isSnapEnabled: Boolean = false
     var snapUnitX: Double = 0.0
@@ -99,12 +104,12 @@ class TouchBehavior(private val node: Node) {
             if (lockOrientation == null || lockOrientation == Orientation.VERTICAL) {
                 findVerticalScrollBarInternal()?.let { scrollBar ->
                     if (isMovingY) {
-                        // 慣性には感度補正係数(200.0)を掛けない生のスケーリングを適用
                         val scale = getRawScale(scrollBar, Orientation.VERTICAL)
                         val scrollDelta = velocityY * inertiaY * scale
                         scrollBar.value = (scrollBar.value - scrollDelta).coerceIn(scrollBar.min, scrollBar.max)
                         if (isBounceEnabledY && (scrollBar.value <= scrollBar.min || scrollBar.value >= scrollBar.max)) {
-                            bounceY += (velocityY * inertiaY * 100.0)
+                            // 上限・下限での蓄積（クランプ適用）
+                            bounceY = (bounceY + velocityY * inertiaY * 100.0).coerceIn(-bounceMaxRangeY, bounceMaxRangeY)
                         }
                     } else if (snapTargetY != null) {
                         scrollBar.value += (snapTargetY - scrollBar.value) * snapRestoration
@@ -119,7 +124,8 @@ class TouchBehavior(private val node: Node) {
                         val scrollDelta = velocityX * inertiaX * scale
                         scrollBar.value = (scrollBar.value - scrollDelta).coerceIn(scrollBar.min, scrollBar.max)
                         if (isBounceEnabledX && (scrollBar.value <= scrollBar.min || scrollBar.value >= scrollBar.max)) {
-                            bounceX += (velocityX * inertiaX * 100.0)
+                            // 左右端での蓄積（クランプ適用）
+                            bounceX = (bounceX + velocityX * inertiaX * 100.0).coerceIn(-bounceMaxRangeX, bounceMaxRangeX)
                         }
                     } else if (snapTargetX != null) {
                         scrollBar.value += (snapTargetX - scrollBar.value) * snapRestoration
@@ -209,7 +215,8 @@ class TouchBehavior(private val node: Node) {
                 val scrollAmount = deltaY * sensitivityY * scale
                 val newValue = scrollBar.value - scrollAmount
                 if (isBounceEnabledY && (newValue < scrollBar.min || newValue > scrollBar.max)) {
-                    bounceY += deltaY * bounceFriction
+                    // ドラッグ中の蓄積（クランプ適用）
+                    bounceY = (bounceY + deltaY * bounceFriction).coerceIn(-bounceMaxRangeY, bounceMaxRangeY)
                     applyBounceTranslation()
                 }
                 scrollBar.value = newValue.coerceIn(scrollBar.min, scrollBar.max)
@@ -222,7 +229,8 @@ class TouchBehavior(private val node: Node) {
                 val scrollAmount = deltaX * sensitivityX * scale
                 val newValue = scrollBar.value - scrollAmount
                 if (isBounceEnabledX && (newValue < scrollBar.min || newValue > scrollBar.max)) {
-                    bounceX += deltaX * bounceFriction
+                    // ドラッグ中の蓄積（クランプ適用）
+                    bounceX = (bounceX + deltaX * bounceFriction).coerceIn(-bounceMaxRangeX, bounceMaxRangeX)
                     applyBounceTranslation()
                 }
                 scrollBar.value = newValue.coerceIn(scrollBar.min, scrollBar.max)
@@ -256,7 +264,6 @@ class TouchBehavior(private val node: Node) {
     }
 
     private fun getEffectiveScale(scrollBar: ScrollBar, orientation: Orientation): Double {
-        // 感度 0.005 が基準（1:1）になるように係数 200.0 を適用。
         return getRawScale(scrollBar, orientation) * 200.0
     }
 
