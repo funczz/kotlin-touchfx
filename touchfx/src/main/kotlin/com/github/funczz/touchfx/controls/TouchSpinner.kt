@@ -1,48 +1,49 @@
 package com.github.funczz.touchfx.controls
 
 import com.github.funczz.touchfx.TouchFX
-import javafx.beans.property.SimpleDoubleProperty
+import com.github.funczz.touchfx.skin.RippleEffect
 import javafx.geometry.Pos
+import javafx.scene.control.Button
 import javafx.scene.layout.HBox
 import javafx.scene.layout.Priority
+import javafx.scene.control.TextField
+import javafx.scene.control.TextFormatter
+import javafx.util.converter.DoubleStringConverter
 
 /**
- * 左右に大型ボタンを配置した、タッチ操作に適した数値入力コントロールです。
+ * タッチ操作に適したサイズ感を持つ Spinner (数値入力) です。
  *
  * @param min 最小値
  * @param max 最大値
  * @param initial 初期値
- * @param step 増減幅
+ * @param step ステップ量
  * @param useDefaultStyle デフォルトのスタイルシートを適用するかどうか
  */
 class TouchSpinner(
     val min: Double = 0.0,
     val max: Double = 100.0,
-    initial: Double = 0.0,
-    var step: Double = 1.0,
+    val initial: Double = 0.0,
+    val step: Double = 1.0,
     useDefaultStyle: Boolean = true
 ) : HBox() {
 
-    private val valueProperty = SimpleDoubleProperty(initial)
-    var value: Double
-        get() = valueProperty.get()
-        set(v) = valueProperty.set(v.coerceIn(min, max))
-
-    fun valueProperty() = valueProperty
-
-    private val textField = TouchTextField(initial.toString(), useDefaultStyle).apply {
-        isEditable = false
+    private val textField = TextField(initial.toString()).apply {
+        styleClass.add("touch-spinner-field")
         alignment = Pos.CENTER
-        maxWidth = 100.0
         HBox.setHgrow(this, Priority.ALWAYS)
+        
+        // 数値のみ入力を許可するフォーマッタ
+        textFormatter = TextFormatter(DoubleStringConverter())
     }
 
-    private val decrementButton = TouchButton("-", useDefaultStyle = useDefaultStyle).apply {
-        setOnAction { value -= step }
+    private val incrementButton = Button("+").apply {
+        styleClass.addAll("touch-spinner-button", "increment")
+        setOnAction { updateValue(step) }
     }
 
-    private val incrementButton = TouchButton("+", useDefaultStyle = useDefaultStyle).apply {
-        setOnAction { value += step }
+    private val decrementButton = Button("-").apply {
+        styleClass.addAll("touch-spinner-button", "decrement")
+        setOnAction { updateValue(-step) }
     }
 
     init {
@@ -52,13 +53,23 @@ class TouchSpinner(
             }
         }
         styleClass.add("touch-spinner")
+        RippleEffect.apply(this)
+
         alignment = Pos.CENTER
         spacing = 5.0
 
         children.addAll(decrementButton, textField, incrementButton)
-
-        valueProperty.addListener { _, _, newValue ->
-            textField.text = newValue.toString()
-        }
     }
+
+    private fun updateValue(delta: Double) {
+        val current = textField.text.toDoubleOrNull() ?: initial
+        val next = (current + delta).coerceIn(min, max)
+        textField.text = next.toString()
+    }
+
+    /** 現在の値を取得します。 */
+    var value: Double
+        get() = textField.text.toDoubleOrNull() ?: initial
+        set(value) { textField.text = value.coerceIn(min, max).toString() }
+
 }

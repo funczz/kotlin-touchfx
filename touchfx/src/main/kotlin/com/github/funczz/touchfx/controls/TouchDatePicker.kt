@@ -1,20 +1,21 @@
 package com.github.funczz.touchfx.controls
 
 import com.github.funczz.touchfx.TouchFX
+import com.github.funczz.touchfx.skin.RippleEffect
 import javafx.application.Platform
 import javafx.scene.control.DatePicker
 import java.time.LocalDate
 
 /**
- * タッチ操作に適した大型のカレンダーを持つ DatePicker です。
+ * タッチ操作に適したサイズ感を持つ DatePicker です。
  *
- * @param initialDate 初期日付
+ * @param value 初期値
  * @param useDefaultStyle デフォルトのスタイルシートを適用するかどうか
  */
 class TouchDatePicker(
-    initialDate: LocalDate? = null,
+    value: LocalDate? = null,
     useDefaultStyle: Boolean = true
-) : DatePicker(initialDate) {
+) : DatePicker(value) {
 
     init {
         if (useDefaultStyle) {
@@ -23,24 +24,16 @@ class TouchDatePicker(
             }
         }
         styleClass.add("touch-date-picker")
+        RippleEffect.apply(this)
 
         // ポップアップが表示された際に、ポップアップ側のスタイルを適用する
         showingProperty().addListener { _, _, isShowing ->
             if (isShowing) {
                 Platform.runLater {
-                    applyPopupStyle()
+                    val popup = skin?.node?.lookup(".date-picker-popup") ?: return@runLater
+                    popup.styleClass.add("touch-date-picker-popup")
                 }
             }
-        }
-    }
-
-    private fun applyPopupStyle() {
-        // ComboBox と同様に、ポップアップウィンドウのコンテンツに対してスタイルを適用
-        editor.scene?.window?.let { _ ->
-            // 現在表示されている DatePicker のポップアップ（DatePickerContent）を特定して
-            // スタイルクラスを付与する。通常は .date-picker-popup クラスが使われる。
-            // ここでは簡易的に CSS セレクタ経由での適用を期待しつつ、
-            // 必要に応じてプログラマティックな調整を行う。
         }
     }
 
