@@ -358,6 +358,18 @@ class InertialListView<T>(
             behavior.bounceMaxRangeY = value
         }
 
+    var bounceRestorationX: Double
+        get() = behavior.bounceRestorationX
+        set(value) {
+            behavior.bounceRestorationX = value
+        }
+
+    var bounceRestorationY: Double
+        get() = behavior.bounceRestorationY
+        set(value) {
+            behavior.bounceRestorationY = value
+        }
+
     var isSnapEnabled: Boolean
         get() = behavior.isSnapEnabled
         set(value) {

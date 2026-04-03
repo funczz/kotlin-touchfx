@@ -49,6 +49,11 @@ class TouchBehavior(private val node: Node) {
     /** Bounce Effect の垂直方向の最大移動距離（ピクセル）。デフォルトは無制限。 */
     var bounceMaxRangeY: Double = Double.MAX_VALUE
 
+    /** Bounce Effect の水平方向の復元速度 (0.01〜1.0)。デフォルト 0.45 (キビキビとした動作)。 */
+    var bounceRestorationX: Double = 0.45
+    /** Bounce Effect の垂直方向の復元速度 (0.01〜1.0)。デフォルト 0.45 (キビキビとした動作)。 */
+    var bounceRestorationY: Double = 0.45
+
     var isSnapEnabled: Boolean = false
     var snapUnitX: Double = 0.0
     var snapUnitY: Double = 0.0
@@ -82,7 +87,7 @@ class TouchBehavior(private val node: Node) {
     private var bounceX: Double = 0.0
     private var bounceY: Double = 0.0
     private val bounceFriction: Double = 0.5
-    private val bounceRestoration: Double = 0.2
+    private var isPressed: Boolean = false
 
     private val inertiaTimer = object : AnimationTimer() {
         override fun handle(now: Long) {
@@ -106,10 +111,12 @@ class TouchBehavior(private val node: Node) {
                     if (isMovingY) {
                         val scale = getRawScale(scrollBar, Orientation.VERTICAL)
                         val scrollDelta = velocityY * inertiaY * scale
-                        scrollBar.value = (scrollBar.value - scrollDelta).coerceIn(scrollBar.min, scrollBar.max)
+                        val oldValue = scrollBar.value
+                        scrollBar.value = (oldValue - scrollDelta).coerceIn(scrollBar.min, scrollBar.max)
+                        
                         if (isBounceEnabledY && (scrollBar.value <= scrollBar.min || scrollBar.value >= scrollBar.max)) {
-                            // 上限・下限での蓄積（クランプ適用）
-                            bounceY = (bounceY + velocityY * inertiaY * 100.0).coerceIn(-bounceMaxRangeY, bounceMaxRangeY)
+                            bounceY = (bounceY + velocityY * inertiaY * 10.0).coerceIn(-bounceMaxRangeY, bounceMaxRangeY)
+                            velocityY *= 0.5
                         }
                     } else if (snapTargetY != null) {
                         scrollBar.value += (snapTargetY - scrollBar.value) * snapRestoration
@@ -122,10 +129,12 @@ class TouchBehavior(private val node: Node) {
                     if (isMovingX) {
                         val scale = getRawScale(scrollBar, Orientation.HORIZONTAL)
                         val scrollDelta = velocityX * inertiaX * scale
-                        scrollBar.value = (scrollBar.value - scrollDelta).coerceIn(scrollBar.min, scrollBar.max)
+                        val oldValue = scrollBar.value
+                        scrollBar.value = (oldValue - scrollDelta).coerceIn(scrollBar.min, scrollBar.max)
+                        
                         if (isBounceEnabledX && (scrollBar.value <= scrollBar.min || scrollBar.value >= scrollBar.max)) {
-                            // 左右端での蓄積（クランプ適用）
-                            bounceX = (bounceX + velocityX * inertiaX * 100.0).coerceIn(-bounceMaxRangeX, bounceMaxRangeX)
+                            bounceX = (bounceX + velocityX * inertiaX * 10.0).coerceIn(-bounceMaxRangeX, bounceMaxRangeX)
+                            velocityX *= 0.5
                         }
                     } else if (snapTargetX != null) {
                         scrollBar.value += (snapTargetX - scrollBar.value) * snapRestoration
@@ -133,9 +142,9 @@ class TouchBehavior(private val node: Node) {
                 }
             }
 
-            if (!isRefreshing) {
-                if (isRestoringX) bounceX *= (1.0 - bounceRestoration)
-                if (isRestoringY) bounceY *= (1.0 - bounceRestoration)
+            if (!isRefreshing && !isPressed) {
+                if (isRestoringX) bounceX *= (1.0 - bounceRestorationX)
+                if (isRestoringY) bounceY *= (1.0 - bounceRestorationY)
                 applyBounceTranslation()
             }
             velocityX *= friction
@@ -171,6 +180,7 @@ class TouchBehavior(private val node: Node) {
 
     private fun handleMousePressed(event: MouseEvent) {
         if (isEventOnScrollBar(event)) return
+        isPressed = true
         inertiaTimer.stop()
         if (isDynamicScrollBarVisible) showScrollBars()
         lastX = event.sceneX
@@ -215,7 +225,6 @@ class TouchBehavior(private val node: Node) {
                 val scrollAmount = deltaY * sensitivityY * scale
                 val newValue = scrollBar.value - scrollAmount
                 if (isBounceEnabledY && (newValue < scrollBar.min || newValue > scrollBar.max)) {
-                    // ドラッグ中の蓄積（クランプ適用）
                     bounceY = (bounceY + deltaY * bounceFriction).coerceIn(-bounceMaxRangeY, bounceMaxRangeY)
                     applyBounceTranslation()
                 }
@@ -229,7 +238,6 @@ class TouchBehavior(private val node: Node) {
                 val scrollAmount = deltaX * sensitivityX * scale
                 val newValue = scrollBar.value - scrollAmount
                 if (isBounceEnabledX && (newValue < scrollBar.min || newValue > scrollBar.max)) {
-                    // ドラッグ中の蓄積（クランプ適用）
                     bounceX = (bounceX + deltaX * bounceFriction).coerceIn(-bounceMaxRangeX, bounceMaxRangeX)
                     applyBounceTranslation()
                 }
@@ -240,6 +248,7 @@ class TouchBehavior(private val node: Node) {
 
     private fun handleMouseReleased(event: MouseEvent) {
         if (isEventOnScrollBar(event)) return
+        isPressed = false
         if (lockOrientation != null) event.consume()
         if (isBounceEnabledY && !isRefreshing && bounceY > refreshThreshold) {
             onRefresh?.let { callback ->
