@@ -144,10 +144,20 @@ inertialScrollPane.isDynamicScrollBarVisible = true
 ### 3.3 境界での跳ね返り (Bounce Effect)
 
 スクロール上限/下限に達した際に境界を超えてスクロールし、滑らかに戻る視覚効果です。
+移動範囲の制限や、復元速度の個別設定が可能です。
 
 ```kotlin
 // 有効化 (デフォルト: false)
 inertialScrollPane.isBounceEnabled = true
+
+// --- 詳細設定 ---
+
+// 最大移動距離の制限 (ピクセル単位。デフォルト: 無制限)
+inertialScrollPane.bounceMaxRangeY = 100.0
+
+// 復元速度の調整 (0.01〜1.0、値が大きいほど速く戻る)
+// デフォルトは 0.45 (瞬時に戻るキビキビとした設定)
+inertialScrollPane.bounceRestorationY = 0.15 // 約0.5秒かけて戻る設定
 ```
 
 ### 3.4 スナップ機能 (Snapping)
@@ -231,6 +241,8 @@ val behavior = myNode.addGestureBehavior {
 - `sensitivity`: スクロールの感度。デフォルトの **1.0** は指の移動量とリストのスクロール量が 1:1 で同期するようにスケーリングされています。
 - `inertia`: 慣性の強さ。指を離した後の「滑り」の長さを決定します。
 - `friction`: 摩擦係数（デフォルト: `0.92`）。
+- `bounceMaxRangeX/Y`: Bounce 時の最大移動距離。
+- `bounceRestorationX/Y`: Bounce から戻る際の速度（0.01〜1.0）。
 
 ## 6. スタイリング
 
