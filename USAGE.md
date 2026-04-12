@@ -108,6 +108,29 @@ if (result.isPresent && result.get() == ButtonType.OK) {
 }
 ```
 
+#### TouchFileChooser
+タッチ操作に最適化したファイル選択ダイアログです。JavaFX 標準の `FileChooser` に近い API を持ち、慣性スクロールによるファイルブラウズが可能です。
+
+```kotlin
+val chooser = TouchFileChooser()
+chooser.title = "Select Image"
+chooser.initialDirectory = File(System.getProperty("user.home"))
+chooser.extensionFilters.add(TouchFileChooser.ExtensionFilter("Images", "*.png", "*.jpg"))
+
+// サイズの指定 (デフォルト: 700x500)
+chooser.prefWidth = 900.0
+chooser.prefHeight = 600.0
+
+// 単一ファイル選択
+val file = chooser.showOpenDialog(window)
+
+// 複数ファイル選択
+val files = chooser.showOpenMultipleDialog(window)
+
+// ディレクトリ選択
+val directory = chooser.showDirectoryDialog(window)
+```
+
 ### 2.4 AdaptiveLayouts (レスポンシブコンテナ)
 
 画面幅に応じて動的にレイアウトを調整するコンテナです。
