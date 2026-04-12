@@ -608,6 +608,37 @@ class TouchFXDemo : Application() {
                 )
             }
 
+            val dialogSection = VBox(10.0).apply {
+                children.addAll(
+                    Label("TouchDialog (Optimized for Touch)").apply { style = "-fx-font-weight: bold;" },
+                    HBox(20.0).apply {
+                        children.addAll(
+                            TouchButton("Show Information").apply {
+                                setOnAction {
+                                    val dialog = TouchDialog.createAlert(
+                                        Alert.AlertType.INFORMATION,
+                                        "Operation Successful",
+                                        "The task has been completed. Tap OK to continue."
+                                    )
+                                    dialog.showAndWait()
+                                }
+                            },
+                            TouchButton("Show Confirmation").apply {
+                                setOnAction {
+                                    val dialog = TouchDialog.createAlert(
+                                        Alert.AlertType.CONFIRMATION,
+                                        "Confirm Action",
+                                        "Are you sure you want to proceed with this operation?"
+                                    )
+                                    val result = dialog.showAndWait()
+                                    println("Dialog Result: ${result.orElse(null)}")
+                                }
+                            }
+                        )
+                    }
+                )
+            }
+
             val checkBoxSection = VBox(10.0).apply {
                 children.addAll(
                     Label("Check & Switch (Selection)").apply { style = "-fx-font-weight: bold;" },
@@ -689,7 +720,7 @@ class TouchFXDemo : Application() {
                 )
             }
 
-            children.addAll(buttonSection, checkBoxSection, inputSection, radioButtonSection, comboBoxSection, sliderSection, Separator(), standardComparisonSection)
+            children.addAll(buttonSection, dialogSection, checkBoxSection, inputSection, radioButtonSection, comboBoxSection, sliderSection, Separator(), standardComparisonSection)
         }
 
         return ScrollPane(vbox).apply {

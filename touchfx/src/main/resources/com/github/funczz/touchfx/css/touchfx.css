@@ -283,3 +283,52 @@
     -fx-min-width: 44px;
     -fx-min-height: 44px;
 }
+
+/**
+ * TouchDialogPane
+ */
+.touch-dialog-pane {
+    -fx-background-color: white;
+    -fx-padding: 20px;
+    -fx-background-radius: 12px;
+    -fx-effect: dropshadow(three-pass-box, rgba(0,0,0,0.3), 10, 0, 0, 5);
+}
+
+.touch-dialog-pane > .header-panel {
+    -fx-padding: 10px 0 20px 0;
+    -fx-border-color: #eeeeee;
+    -fx-border-width: 0 0 1 0;
+}
+
+.touch-dialog-pane > .header-panel > .label {
+    -fx-font-size: 1.4em;
+    -fx-font-weight: bold;
+    -fx-text-fill: #333333;
+}
+
+.touch-dialog-pane > .content {
+    -fx-padding: 20px 0;
+    -fx-font-size: 1.1em;
+    -fx-text-fill: #666666;
+}
+
+.touch-dialog-pane > .button-bar {
+    -fx-padding: 20px 0 0 0;
+}
+
+.touch-dialog-button {
+    -fx-background-radius: 8px;
+    -fx-font-size: 1.1em;
+    -fx-font-weight: bold;
+    -fx-padding: 10px 20px;
+    -fx-cursor: hand;
+}
+
+.touch-dialog-button:hover {
+    -fx-background-color: derive(-fx-base, 10%);
+}
+
+.touch-dialog-button:pressed {
+    -fx-scale-x: 0.98;
+    -fx-scale-y: 0.98;
+}
