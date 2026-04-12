@@ -50,8 +50,10 @@ class TouchComboBox<T>(
                             text = null
                             graphic = null
                         } else {
-                            text = item.toString()
-                            styleClass.add("touch-combo-box-cell")
+                            text = converter?.toString(item) ?: item.toString()
+                            if (!styleClass.contains("toolbar-combo-box-cell")) {
+                                styleClass.add("touch-combo-box-cell")
+                            }
                         }
                     }
                 }
@@ -67,8 +69,10 @@ class TouchComboBox<T>(
                         text = null
                         graphic = null
                     } else {
-                        text = item.toString()
-                        styleClass.add("touch-combo-box-cell")
+                        text = converter?.toString(item) ?: item.toString()
+                        if (!styleClass.contains("toolbar-combo-box-cell")) {
+                            styleClass.add("touch-combo-box-cell")
+                        }
                     }
                 }
             })

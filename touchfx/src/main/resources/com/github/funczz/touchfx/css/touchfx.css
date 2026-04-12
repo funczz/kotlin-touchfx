@@ -332,3 +332,83 @@
     -fx-scale-x: 0.98;
     -fx-scale-y: 0.98;
 }
+
+/**
+ * TouchFileBrowser
+ */
+.touch-file-browser {
+    -fx-background-color: #f9f9f9;
+}
+
+.touch-file-browser .path-box {
+    -fx-background-color: white;
+    -fx-border-color: #dddddd;
+    -fx-border-width: 0 0 1 0;
+}
+
+.touch-file-browser .path-button {
+    -fx-min-height: 40px;
+    -fx-padding: 0 10px;
+    -fx-background-color: transparent;
+    -fx-text-fill: #2196F3;
+    -fx-font-size: 1.0em;
+    -fx-font-weight: bold;
+}
+
+.touch-file-browser .path-button:hover {
+    -fx-background-color: #eeeeee;
+}
+
+.touch-file-browser .file-item {
+    -fx-background-color: white;
+    -fx-border-color: #eeeeee;
+    -fx-border-width: 0 0 1 0;
+}
+
+.touch-file-browser .file-item .label {
+    -fx-text-fill: #333333;
+}
+
+.touch-file-browser .file-item.selected {
+    -fx-background-color: #e3f2fd; /* Light Blue 50 */
+}
+
+.touch-file-browser .file-item.selected .label {
+    -fx-text-fill: #1976D2; /* Darker Blue for contrast */
+}
+
+.touch-file-browser .file-item:hover {
+    -fx-background-color: #f5f5f5;
+}
+
+/**
+ * FileBrowser Toolbar
+ */
+.touch-file-browser .toolbar {
+    -fx-padding: 5px 10px;
+    -fx-spacing: 10px;
+    -fx-background-color: #f0f0f0;
+    -fx-border-color: #dddddd;
+    -fx-border-width: 0 0 1 0;
+}
+
+.toolbar-button {
+    -fx-min-height: 40px;
+    -fx-padding: 0 15px;
+    -fx-font-size: 0.9em;
+}
+
+.toolbar-combo-box {
+    -fx-min-height: 44px;
+    -fx-pref-height: 44px;
+    -fx-max-height: 44px;
+    -fx-font-size: 0.9em;
+}
+
+.toolbar-combo-box-cell {
+    -fx-min-height: 44px;
+    -fx-pref-height: 44px;
+    -fx-max-height: 44px;
+    -fx-font-size: 0.9em;
+    -fx-padding: 5px 10px;
+}

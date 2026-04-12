@@ -82,6 +82,11 @@ class InertialListView<T>(
 
     var onVisibleRangeChanged: ((Int, Int) -> Unit)? = null
 
+    /**
+     * アイテムがクリックされた時のコールバック。
+     */
+    var onItemClicked: ((T) -> Unit)? = null
+
     private val floatingHeaderContainer = AnchorPane().apply {
         isMouseTransparent = true
         StackPane.setAlignment(this, Pos.TOP_LEFT)
@@ -134,6 +139,14 @@ class InertialListView<T>(
         if (stickyHeaderEnabled) updateStickyHeader()
     }
 
+    /**
+     * リスト全体の表示を強制的に更新します。
+     */
+    fun refresh() {
+        listView.refresh()
+        update()
+    }
+
     fun updateVisibleRange() {
         val skin = listView.skin as? ListViewSkin<T> ?: return
         val flow = skin.children.find { it is VirtualFlow<*> } as? VirtualFlow<*> ?: return
@@ -173,6 +186,12 @@ class InertialListView<T>(
                             alignment = Pos.CENTER_LEFT
                             style = "-fx-background-color: transparent;"
                             isPickOnBounds = true
+                            
+                            setOnMouseClicked { event ->
+                                if (event.clickCount == 1) {
+                                    onItemClicked?.invoke(item)
+                                }
+                            }
                         }
 
                         if (swipeLeftFactory != null || swipeRightFactory != null) {

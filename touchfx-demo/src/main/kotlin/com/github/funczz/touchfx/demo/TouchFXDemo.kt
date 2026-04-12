@@ -639,6 +639,40 @@ class TouchFXDemo : Application() {
                 )
             }
 
+            val fileChooserSection = VBox(10.0).apply {
+                children.addAll(
+                    Label("TouchFileChooser (Native-style File Browser)").apply { style = "-fx-font-weight: bold;" },
+                    HBox(20.0).apply {
+                        children.addAll(
+                            TouchButton("Open File").apply {
+                                setOnAction {
+                                    val chooser = TouchFileChooser()
+                                    chooser.title = "Select Image"
+                                    val file = chooser.showOpenDialog(this.scene?.window)
+                                    println("Selected File: $file")
+                                }
+                            },
+                            TouchButton("Open Multiple Files").apply {
+                                setOnAction {
+                                    val chooser = TouchFileChooser()
+                                    chooser.title = "Select Files"
+                                    val files = chooser.showOpenMultipleDialog(this.scene?.window)
+                                    println("Selected Files: $files")
+                                }
+                            },
+                            TouchButton("Open Directory").apply {
+                                setOnAction {
+                                    val chooser = TouchFileChooser()
+                                    chooser.title = "Select Folder"
+                                    val dir = chooser.showDirectoryDialog(this.scene?.window)
+                                    println("Selected Directory: $dir")
+                                }
+                            }
+                        )
+                    }
+                )
+            }
+
             val checkBoxSection = VBox(10.0).apply {
                 children.addAll(
                     Label("Check & Switch (Selection)").apply { style = "-fx-font-weight: bold;" },
@@ -720,7 +754,7 @@ class TouchFXDemo : Application() {
                 )
             }
 
-            children.addAll(buttonSection, dialogSection, checkBoxSection, inputSection, radioButtonSection, comboBoxSection, sliderSection, Separator(), standardComparisonSection)
+            children.addAll(buttonSection, dialogSection, fileChooserSection, checkBoxSection, inputSection, radioButtonSection, comboBoxSection, sliderSection, Separator(), standardComparisonSection)
         }
 
         return ScrollPane(vbox).apply {
