@@ -84,6 +84,30 @@ val tabPane = TouchTabPane()
 tabPane.tabs.add(Tab("Home"))
 ```
 
+#### TouchDialog
+タッチ操作に最適化されたダイアログボックスです。JavaFX 標準の `Dialog` と互換性を持ち、大きなボタン、広い余白、Ripple Effect を備えています。
+
+```kotlin
+// 情報ダイアログの表示
+val dialog = TouchDialog.createAlert(
+    Alert.AlertType.INFORMATION,
+    "Operation Successful",
+    "The task has been completed."
+)
+dialog.showAndWait()
+
+// 確認ダイアログの表示と結果の取得
+val confirm = TouchDialog.createAlert(
+    Alert.AlertType.CONFIRMATION,
+    "Confirm Action",
+    "Are you sure you want to proceed?"
+)
+val result = confirm.showAndWait()
+if (result.isPresent && result.get() == ButtonType.OK) {
+    // 実行...
+}
+```
+
 ### 2.4 AdaptiveLayouts (レスポンシブコンテナ)
 
 画面幅に応じて動的にレイアウトを調整するコンテナです。
