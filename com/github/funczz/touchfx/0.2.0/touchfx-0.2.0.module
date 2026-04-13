@@ -1,0 +1,101 @@
+{
+  "formatVersion": "1.1",
+  "component": {
+    "group": "com.github.funczz",
+    "module": "touchfx",
+    "version": "0.2.0",
+    "attributes": {
+      "org.gradle.status": "release"
+    }
+  },
+  "createdBy": {
+    "gradle": {
+      "version": "9.4.1"
+    }
+  },
+  "variants": [
+    {
+      "name": "apiElements",
+      "attributes": {
+        "org.gradle.category": "library",
+        "org.gradle.dependency.bundling": "external",
+        "org.gradle.jvm.environment": "standard-jvm",
+        "org.gradle.jvm.version": 17,
+        "org.gradle.libraryelements": "jar",
+        "org.gradle.usage": "java-api",
+        "org.jetbrains.kotlin.platform.type": "jvm"
+      },
+      "files": [
+        {
+          "name": "touchfx-0.2.0.jar",
+          "url": "touchfx-0.2.0.jar",
+          "size": 198291,
+          "sha512": "f148ddea26f810835d56afcdbe0fe7d6d2e0d9b0d144f20f18d4332fa92efa9d8e1765fc7826cd5edd11559fa29522183cb7e0604df868af7a67edc9278c8110",
+          "sha256": "8f4791ae1854aa666f3ace7bc4dbb986c124c7720a21e9cdcab8b50c41984206",
+          "sha1": "412e20922d85b9b6aa58fc334d045410b9dff7b8",
+          "md5": "0c58fdd516c59fafbc42a9ce0f409870"
+        }
+      ]
+    },
+    {
+      "name": "runtimeElements",
+      "attributes": {
+        "org.gradle.category": "library",
+        "org.gradle.dependency.bundling": "external",
+        "org.gradle.jvm.environment": "standard-jvm",
+        "org.gradle.jvm.version": 17,
+        "org.gradle.libraryelements": "jar",
+        "org.gradle.usage": "java-runtime",
+        "org.jetbrains.kotlin.platform.type": "jvm"
+      },
+      "dependencies": [
+        {
+          "group": "org.jetbrains.kotlin",
+          "module": "kotlin-stdlib",
+          "version": {
+            "requires": "1.9.23"
+          }
+        },
+        {
+          "group": "org.openjfx",
+          "module": "javafx-base",
+          "version": {
+            "requires": "17.0.10"
+          }
+        },
+        {
+          "group": "org.openjfx",
+          "module": "javafx-graphics",
+          "version": {
+            "requires": "17.0.10"
+          }
+        },
+        {
+          "group": "org.openjfx",
+          "module": "javafx-controls",
+          "version": {
+            "requires": "17.0.10"
+          }
+        },
+        {
+          "group": "org.openjfx",
+          "module": "javafx-fxml",
+          "version": {
+            "requires": "17.0.10"
+          }
+        }
+      ],
+      "files": [
+        {
+          "name": "touchfx-0.2.0.jar",
+          "url": "touchfx-0.2.0.jar",
+          "size": 198291,
+          "sha512": "f148ddea26f810835d56afcdbe0fe7d6d2e0d9b0d144f20f18d4332fa92efa9d8e1765fc7826cd5edd11559fa29522183cb7e0604df868af7a67edc9278c8110",
+          "sha256": "8f4791ae1854aa666f3ace7bc4dbb986c124c7720a21e9cdcab8b50c41984206",
+          "sha1": "412e20922d85b9b6aa58fc334d045410b9dff7b8",
+          "md5": "0c58fdd516c59fafbc42a9ce0f409870"
+        }
+      ]
+    }
+  ]
+}
