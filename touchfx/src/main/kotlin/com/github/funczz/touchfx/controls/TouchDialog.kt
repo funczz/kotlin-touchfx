@@ -1,5 +1,6 @@
 package com.github.funczz.touchfx.controls
 
+import com.github.funczz.touchfx.i18n.TouchFXI18n
 import javafx.scene.control.Alert
 import javafx.scene.control.ButtonType
 import javafx.scene.control.Dialog
@@ -15,7 +16,7 @@ open class TouchDialog<R> : Dialog<R>() {
     init {
         // 標準で TouchDialogPane を設定
         dialogPane = TouchDialogPane()
-        
+
         // ヘッダーテキストやコンテンツがない場合のレイアウト崩れを防ぐためのデフォルト設定
         initModality(Modality.APPLICATION_MODAL)
         initStyle(StageStyle.DECORATED) // OS 標準の枠を活かすか、独自のオーバーレイを作成するかは後のフェーズで検討
@@ -27,10 +28,14 @@ open class TouchDialog<R> : Dialog<R>() {
     companion object {
         fun createAlert(alertType: Alert.AlertType, header: String?, content: String?): TouchDialog<ButtonType> {
             val dialog = TouchDialog<ButtonType>()
-            dialog.title = alertType.name
+
+            // ロケールに応じたタイトルの取得
+            val titleKey = "dialog.title.${alertType.name.lowercase()}"
+            dialog.title = TouchFXI18n.getString(titleKey)
+
             dialog.headerText = header
             dialog.contentText = content
-            
+
             val types = when (alertType) {
                 Alert.AlertType.CONFIRMATION -> listOf(ButtonType.OK, ButtonType.CANCEL)
                 Alert.AlertType.ERROR, Alert.AlertType.INFORMATION, Alert.AlertType.WARNING -> listOf(ButtonType.OK)
@@ -41,6 +46,7 @@ open class TouchDialog<R> : Dialog<R>() {
         }
     }
 }
+
 
 /**
  * 簡易的なアラート表示のための拡張機能。

@@ -41,7 +41,8 @@ class TouchDialogTest {
         assertTrue(latch.await(5, TimeUnit.SECONDS))
         
         val d = dialog!!
-        assertEquals("INFORMATION", d.title)
+        val expectedTitle = com.github.funczz.touchfx.i18n.TouchFXI18n.getString("dialog.title.information")
+        assertEquals(expectedTitle, d.title)
         assertEquals("Test Header", d.headerText)
         assertEquals("Test Content", d.contentText)
         assertTrue(d.dialogPane is TouchDialogPane)

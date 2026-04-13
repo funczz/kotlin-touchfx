@@ -3,6 +3,7 @@ package com.github.funczz.touchfx.demo
 import com.github.funczz.touchfx.behavior.GestureBehavior
 import com.github.funczz.touchfx.behavior.addGestureBehavior
 import com.github.funczz.touchfx.controls.*
+import com.github.funczz.touchfx.i18n.TouchFXI18n
 import javafx.application.Application
 import javafx.application.Platform
 import javafx.geometry.Insets
@@ -15,6 +16,7 @@ import javafx.scene.paint.Color
 import javafx.scene.shape.Circle
 import javafx.scene.shape.Rectangle
 import javafx.stage.Stage
+import java.util.*
 import java.util.concurrent.CompletableFuture
 import java.util.concurrent.ConcurrentHashMap
 
@@ -25,6 +27,33 @@ class TouchFXDemo : Application() {
 
     override fun start(primaryStage: Stage) {
         val tabPane = TouchTabPane()
+
+        // 言語切り替えボタン
+        val localeToggle = TouchButton("").apply {
+            minHeight = 44.0
+            
+            // 初期状態の設定
+            val currentLanguage = TouchFXI18n.locale.language
+            if (currentLanguage == Locale.JAPANESE.language) {
+                text = "Switch to English"
+            } else {
+                text = "Switch to Japanese"
+            }
+
+            setOnAction {
+                if (TouchFXI18n.locale.language == Locale.ENGLISH.language) {
+                    TouchFXI18n.locale = Locale.JAPANESE
+                    text = "Switch to English"
+                } else {
+                    TouchFXI18n.locale = Locale.ENGLISH
+                    text = "Switch to Japanese"
+                }
+            }
+        }
+        val header = HBox(localeToggle).apply {
+            alignment = Pos.CENTER_RIGHT
+            padding = Insets(10.0)
+        }
 
         // Tab 1: InertialListView
         val listViewTab = Tab("InertialListView").apply {
@@ -64,7 +93,10 @@ class TouchFXDemo : Application() {
 
         tabPane.tabs.addAll(listViewTab, onDemandTab, scrollPaneTab, gesturesTab, controlsTab, layoutsTab)
 
-        val root = BorderPane(tabPane)
+        val root = BorderPane().apply {
+            top = header
+            center = tabPane
+        }
         primaryStage.title = "TouchFX Demo"
         primaryStage.scene = Scene(root, 1000.0, 800.0)
         primaryStage.show()

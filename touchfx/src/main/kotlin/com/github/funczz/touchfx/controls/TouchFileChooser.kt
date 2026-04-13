@@ -1,5 +1,6 @@
 package com.github.funczz.touchfx.controls
 
+import com.github.funczz.touchfx.i18n.TouchFXI18n
 import javafx.application.Platform
 import javafx.beans.binding.Bindings
 import javafx.collections.FXCollections
@@ -32,7 +33,7 @@ class TouchFileChooser {
     val extensionFilters: ObservableList<ExtensionFilter> = FXCollections.observableArrayList()
     var selectedExtensionFilter: ExtensionFilter? = null
 
-    var prefWidth: Double = 900.0 // 検索ボックス追加に合わせて幅を調整
+    var prefWidth: Double = 900.0
     var prefHeight: Double = 600.0
 
     fun showOpenDialog(owner: Window?): File? {
@@ -58,7 +59,12 @@ class TouchFileChooser {
 
     private fun createDialog(isMultiSelect: Boolean, isDirOnly: Boolean): TouchDialog<List<File>> {
         val dialog = TouchDialog<List<File>>()
-        dialog.title = title ?: if (isDirOnly) "Select Directory" else "Open File"
+        
+        dialog.title = title ?: when {
+            isDirOnly -> TouchFXI18n.getString("filechooser.title.select_directory")
+            isMultiSelect -> TouchFXI18n.getString("filechooser.title.select_files")
+            else -> TouchFXI18n.getString("filechooser.title.open")
+        }
         
         val browser = TouchFileBrowser(isMultiSelect = isMultiSelect, isDirOnly = isDirOnly)
         browser.initialDirectory = initialDirectory ?: File(System.getProperty("user.home"))
@@ -81,9 +87,11 @@ class TouchFileChooser {
 
 internal class TouchFileBrowser(val isMultiSelect: Boolean = false, val isDirOnly: Boolean = false) {
 
-    enum class SortType(val label: String) { 
-        NAME("Name"), SIZE("Size"), DATE("Date");
-        override fun toString(): String = label
+    enum class SortType(val key: String) { 
+        NAME("filechooser.sort.name"), 
+        SIZE("filechooser.sort.size"), 
+        DATE("filechooser.sort.date");
+        override fun toString(): String = TouchFXI18n.getString(key)
     }
 
     var initialDirectory: File = File(System.getProperty("user.home"))
@@ -131,12 +139,12 @@ internal class TouchFileBrowser(val isMultiSelect: Boolean = false, val isDirOnl
                 managedProperty().bind(visibleProperty())
                 
                 children.addAll(
-                    TouchButton("Select All").apply { 
+                    TouchButton(TouchFXI18n.getString("filechooser.toolbar.select_all")).apply { 
                         styleClass.add("toolbar-button")
                         minHeight = 44.0; maxHeight = 44.0
                         setOnAction { selectAll() } 
                     },
-                    TouchButton("Deselect All").apply { 
+                    TouchButton(TouchFXI18n.getString("filechooser.toolbar.deselect_all")).apply { 
                         styleClass.add("toolbar-button")
                         minHeight = 44.0; maxHeight = 44.0
                         setOnAction { deselectAll() } 
@@ -155,11 +163,10 @@ internal class TouchFileBrowser(val isMultiSelect: Boolean = false, val isDirOnl
                     minHeight = 44.0
                     maxHeight = 44.0
                     
-                    val stringConverter = object : StringConverter<SortType>() {
-                        override fun toString(st: SortType?): String = st?.label ?: ""
-                        override fun fromString(string: String?): SortType? = SortType.values().find { it.label == string }
+                    converter = object : StringConverter<SortType>() {
+                        override fun toString(st: SortType?): String = st?.toString() ?: ""
+                        override fun fromString(string: String?): SortType? = SortType.values().find { it.toString() == string }
                     }
-                    converter = stringConverter
                     
                     val cellFactory = { _: ListView<SortType>? ->
                         object : ListCell<SortType>() {
@@ -168,7 +175,7 @@ internal class TouchFileBrowser(val isMultiSelect: Boolean = false, val isDirOnl
                                 if (empty || item == null) {
                                     text = null
                                 } else {
-                                    text = item.label
+                                    text = item.toString()
                                     styleClass.add("toolbar-combo-box-cell")
                                 }
                             }
@@ -194,14 +201,14 @@ internal class TouchFileBrowser(val isMultiSelect: Boolean = false, val isDirOnl
                         applyFilterSortAndRefresh()
                     }
                 }
-                children.addAll(Label("Sort:"), sortCombo, orderBtn)
+                children.addAll(Label(TouchFXI18n.getString("filechooser.toolbar.sort")), sortCombo, orderBtn)
             }
 
             // 検索UI
             val searchBox = HBox(5.0).apply {
                 alignment = Pos.CENTER_LEFT
                 val searchField = TouchTextField().apply {
-                    promptText = "Search files..."
+                    promptText = TouchFXI18n.getString("filechooser.search.prompt")
                     prefWidth = 200.0
                     minHeight = 44.0
                     maxHeight = 44.0
@@ -210,12 +217,12 @@ internal class TouchFileBrowser(val isMultiSelect: Boolean = false, val isDirOnl
                         applyFilterSortAndRefresh()
                     }
                 }
-                children.addAll(Label("Search:"), searchField)
+                children.addAll(Label(TouchFXI18n.getString("filechooser.toolbar.search")), searchField)
             }
 
             val spacer = Region().apply { HBox.setHgrow(this, Priority.ALWAYS) }
 
-            val newFolderBtn = TouchButton("New Folder").apply {
+            val newFolderBtn = TouchButton(TouchFXI18n.getString("filechooser.toolbar.new_folder")).apply {
                 styleClass.add("toolbar-button")
                 minHeight = 44.0; maxHeight = 44.0
                 setOnAction { showNewFolderDialog() }
@@ -314,7 +321,7 @@ internal class TouchFileBrowser(val isMultiSelect: Boolean = false, val isDirOnl
             } catch (e: Exception) { /* 非POSIX */ }
             
             "$perms  $ownerInfo  $sizeStr  $dateStr"
-        } catch (e: Exception) { "Attributes unavailable" }
+        } catch (e: Exception) { TouchFXI18n.getString("filechooser.attr.unavailable") }
     }
 
     private fun formatSize(bytes: Long): String {
@@ -325,14 +332,12 @@ internal class TouchFileBrowser(val isMultiSelect: Boolean = false, val isDirOnl
     }
 
     private fun applyFilterSortAndRefresh() {
-        // 1. Filtering
         val filtered = if (filterText.isEmpty()) {
             allFilesOfCurrentDir
         } else {
             allFilesOfCurrentDir.filter { it.name.lowercase().contains(filterText) }
         }
 
-        // 2. Sorting
         val comparator = when (sortBy) {
             SortType.NAME -> compareBy<File> { it.name.lowercase() }
             SortType.SIZE -> compareBy<File> { if (it.isDirectory) -1L else it.length() }
@@ -341,7 +346,6 @@ internal class TouchFileBrowser(val isMultiSelect: Boolean = false, val isDirOnl
         val finalComparator = if (sortAscending) comparator else comparator.reversed()
         val sortedFiles = filtered.sortedWith(compareBy<File>({ !it.isDirectory }).thenComparing(finalComparator))
         
-        // 3. Update UI
         fileList.items.setAll(sortedFiles)
         fileList.refresh()
     }
@@ -391,9 +395,14 @@ internal class TouchFileBrowser(val isMultiSelect: Boolean = false, val isDirOnl
 
     private fun showNewFolderDialog() {
         val dialog = TouchDialog<String>()
-        dialog.title = "New Folder"
-        dialog.headerText = "Create a new folder in:\n${currentDirFile.path}"
-        val textField = TouchTextField("New Folder").apply { promptText = "Folder name"; selectAll() }
+        dialog.title = TouchFXI18n.getString("filechooser.newfolder.title")
+        dialog.headerText = "${TouchFXI18n.getString("filechooser.newfolder.header")}\n${currentDirFile.path}"
+        
+        val textField = TouchTextField(TouchFXI18n.getString("filechooser.newfolder.title")).apply { 
+            promptText = TouchFXI18n.getString("filechooser.newfolder.prompt")
+            selectAll() 
+        }
+        
         dialog.dialogPane.content = VBox(10.0, textField).apply { padding = Insets(20.0, 0.0, 0.0, 0.0) }
         dialog.dialogPane.buttonTypes.addAll(ButtonType.OK, ButtonType.CANCEL)
         val okButton = dialog.dialogPane.lookupButton(ButtonType.OK)
@@ -404,9 +413,19 @@ internal class TouchFileBrowser(val isMultiSelect: Boolean = false, val isDirOnl
             val newDir = File(currentDirFile, name)
             if (!newDir.exists()) {
                 if (newDir.mkdir()) { navigateTo(currentDirFile) }
-                else { TouchDialog.createAlert(Alert.AlertType.ERROR, "Error", "Failed to create folder: $name").showAndWait() }
+                else { 
+                    TouchDialog.createAlert(
+                        Alert.AlertType.ERROR, 
+                        TouchFXI18n.getString("filechooser.error.title"), 
+                        "${TouchFXI18n.getString("filechooser.error.failed")} $name"
+                    ).showAndWait() 
+                }
             } else {
-                TouchDialog.createAlert(Alert.AlertType.WARNING, "Warning", "Folder already exists: $name").showAndWait()
+                TouchDialog.createAlert(
+                    Alert.AlertType.WARNING, 
+                    TouchFXI18n.getString("filechooser.warning.title"), 
+                    "${TouchFXI18n.getString("filechooser.warning.exists")} $name"
+                ).showAndWait()
             }
         }
     }
